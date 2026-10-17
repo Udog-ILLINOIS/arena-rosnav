@@ -127,7 +127,8 @@
     <arg name="visualization" default="$(arg visualization)" />
     <arg name="rviz_file" value="$(arg rviz_file)" />
     <arg name="model" value="$(arg model)" />
-    <arg name="show_rviz" value="$(arg show_rviz)" />
+    <!-- the arena.rviz node below is the only RViz; a second node named rviz would clash -->
+    <arg name="show_rviz" value="false" />
     <arg name="headless" value="$(arg headless)" />
   </include>
 
@@ -135,7 +136,8 @@
   <include file="$(find arena_bringup)/launch/testing/simulators/gazebo.launch" if="$(eval arg('simulator') == 'gazebo')">
     <arg name="model" value="$(arg model)" />
     <arg name="rviz_file" value="$(arg rviz_file)" />
-    <arg name="show_rviz" default="$(arg show_rviz)" />
+    <!-- the arena.rviz node below is the only RViz; a second node named rviz would clash -->
+    <arg name="show_rviz" value="false" />
     <arg name="world" value="$(arg world_file)"/>
     <arg name="pedsim" value="$(arg pedsim)"/>
     <arg name="headless" value="$(arg headless)" />
