@@ -96,6 +96,7 @@ class TaskGenerator:
     _entity_manager: EntityManager
     _task: Task
 
+    _pub_scenario_reset_begin: rospy.Publisher
     _pub_scenario_reset: rospy.Publisher
     _pub_scenario_finished: rospy.Publisher
 
@@ -113,6 +114,13 @@ class TaskGenerator:
 
         # Publishers
         if not self._train_mode:
+            # Published before the reset starts, with the id the matching
+            # scenario_reset will carry. Latched like scenario_reset: a reset
+            # is in progress while this id is greater than the last
+            # scenario_reset id.
+            self._pub_scenario_reset_begin = rospy.Publisher(
+                "scenario_reset_begin", std_msgs.Int16, queue_size=1, latch=True
+            )
             self._pub_scenario_reset = rospy.Publisher(
                 "scenario_reset", std_msgs.Int16, queue_size=1, latch=True
             )
@@ -305,6 +313,7 @@ class TaskGenerator:
     # RUNTIME
 
     def reset_task(self, **kwargs):
+        self._pub_scenario_reset_begin.publish(self._number_of_resets)
         print("reset_task1")
         self._start_time = rospy.get_time()
         print("reset_task2")
