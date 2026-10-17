@@ -320,7 +320,6 @@ class TaskGenerator:
         self._number_of_resets += 1
         self._send_end_message_on_end()
         print("reset_task7")
-        self._env_wrapper.after_reset_task()
         print("reset_task8")
         rospy.loginfo("=============")
         rospy.loginfo("Task Reset!")
