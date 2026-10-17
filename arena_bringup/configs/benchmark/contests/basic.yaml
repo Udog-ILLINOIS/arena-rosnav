@@ -1,6 +1,6 @@
 contestants:
-  # - name: teb
-  #   local_planner: teb
+  - name: teb
+    local_planner: teb
 
   # - name: cohan
   #   local_planner: cohan

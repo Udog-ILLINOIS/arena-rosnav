@@ -186,7 +186,7 @@ def lp(parameter: str, fallback: Any) -> Callable[[Optional[Any]], Any]:
 
 
 class Pedsim:
-    VMAX = lp("VMAX", 0.25)
+    VMAX = lp("VMAX", 0.5)
     START_UP_MODE = lp("START_UP_MODE", "default")
     WAIT_TIME = lp("WAIT_TIME", 0.0)
     TRIGGER_ZONE_RADIUS = lp("TRIGGER_ZONE_RADIUS", 0.0)

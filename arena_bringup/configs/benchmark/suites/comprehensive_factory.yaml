@@ -1,16 +1,16 @@
 stages:   
-  # - name: factory_scenario_0
-  #   episodes: 5
-  #   robot: rto
-  #   map: factory
-  #   tm_robots: scenario
-  #   tm_obstacles: scenario
-  #   config:
-  #     SCENARIO:
-  #       file: 0.json
+  - name: factory_scenario_0
+    episodes: 1
+    robot: rto
+    map: factory
+    tm_robots: scenario
+    tm_obstacles: scenario
+    config:
+      SCENARIO:
+        file: 0.json
 
-  # - name: factory_scenario_1
-  #   episodes: 5
+  # - name: factory_scenario_1c
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
@@ -20,7 +20,7 @@ stages:
   #       file: 1.json
 
   # - name: factory_scenario_2
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
@@ -30,7 +30,7 @@ stages:
   #       file: 2.json
 
   # - name: factory_scenario_3
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
@@ -40,7 +40,7 @@ stages:
   #       file: 3.json
 
   # - name: factory_scenario_4
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
@@ -49,38 +49,38 @@ stages:
   #     SCENARIO:
   #       file: 4.json
 
-  # # - name: factory_scenario_5
-  # #   episodes: 5
-  # #   robot: rto
-  # #   map: factory
-  # #   tm_robots: scenario
-  # #   tm_obstacles: scenario
-  # #   config:
-  # #     SCENARIO:
-  # #       file: 5.json         
+  # - name: factory_scenario_5
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 5.json         
 
-  # # - name: factory_scenario_6
-  # #   episodes: 5
-  # #   robot: rto
-  # #   map: factory
-  # #   tm_robots: scenario
-  # #   tm_obstacles: scenario
-  # #   config:
-  # #     SCENARIO:
-  # #       file: 6.json
+  # - name: factory_scenario_6
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 6.json
 
-  # # - name: factory_scenario_7
-  # #   episodes: 5
-  # #   robot: rto
-  # #   map: factory
-  # #   tm_robots: scenario
-  # #   tm_obstacles: scenario
-  # #   config:
-  # #     SCENARIO:
-  # #       file: 7.json
+  # - name: factory_scenario_7
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 7.json
 
   # - name: factory_scenario_8
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
@@ -90,7 +90,7 @@ stages:
   #       file: 8.json
 
   # - name: factory_scenario_9
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
@@ -99,158 +99,158 @@ stages:
   #     SCENARIO:
   #       file: 9.json
 
-  - name: factory_scenario_10
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 10.json
+  # - name: factory_scenario_10
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 0_nick.json
 
-  - name: factory_scenario_11
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 11.json            
+  # - name: factory_scenario_11
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 1_nick.json            
 
-  - name: factory_scenario_12
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 12.json            
+  # - name: factory_scenario_12
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 2_nick.json            
 
-  - name: factory_scenario_13
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 13.json
+  # - name: factory_scenario_13
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 3_nick.json
 
-  - name: factory_scenario_14
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 14.json
+  # - name: factory_scenario_14
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 4_nick.json
 
-  - name: factory_scenario_15
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 15.json
+  # - name: factory_scenario_15
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 5_nick.json
 
-  - name: factory_scenario_16
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 16.json
+  # - name: factory_scenario_16
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 6_nick.json
 
-  - name: factory_scenario_17
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 17.json
+  # - name: factory_scenario_17
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 7_nick.json
 
-  - name: factory_scenario_18
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 18.json         
+  # - name: factory_scenario_18
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 8_nick.json         
 
-  - name: factory_scenario_19
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 19.json
+  # - name: factory_scenario_19
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 9_nick.json
 
-  - name: factory_scenario_20
-    episodes: 5
-    robot: rto
-    map: factory
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 20.json
+  # - name: factory_scenario_20
+  #   episodes: 1
+  #   robot: rto
+  #   map: factory
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 0_ewan.json
 
   # - name: factory_scenario_21
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
   #   tm_obstacles: scenario
   #   config:
   #     SCENARIO:
-  #       file: 21.json
+  #       file: 1_ewan.json
 
   # - name: factory_scenario_22
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
   #   tm_obstacles: scenario
   #   config:
   #     SCENARIO:
-  #       file: 22.json
+  #       file: 2_ewan.json
 
   # - name: factory_scenario_23
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
   #   tm_obstacles: scenario
   #   config:
   #     SCENARIO:
-  #       file: 23.json
+  #       file: 3_ewan.json
 
   # - name: factory_scenario_24
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
   #   tm_obstacles: scenario
   #   config:
   #     SCENARIO:
-  #       file: 24.json            
+  #       file: 4_ewan.json            
 
   # - name: factory_scenario_25
-  #   episodes: 5
+  #   episodes: 1
   #   robot: rto
   #   map: factory
   #   tm_robots: scenario
@@ -258,5 +258,4 @@ stages:
   #   config:
   #     SCENARIO:
   #       file: 24.json       
-
-  
+   

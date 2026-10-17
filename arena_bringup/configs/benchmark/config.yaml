@@ -2,7 +2,7 @@ suite:
   config: comprehensive_empty.yaml # CS6_interrupting.yaml 
 
 contest:
-  config: dgap.yaml # basic.yaml
+  config: dgap.yaml # dgap.yaml 
 
 general:
   simulator: flatland

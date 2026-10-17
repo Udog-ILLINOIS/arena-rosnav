@@ -1,33 +1,33 @@
 stages:
-  - name: empty_scenario_0
-    episodes: 1
-    robot: rto
-    map: map_empty
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 0.json
+  # - name: empty_scenario_0
+  #   episodes: 1
+  #   robot: rto
+  #   map: map_empty
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 0.json
 
-  - name: empty_scenario_1
-    episodes: 1
-    robot: rto
-    map: map_empty
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO:
-        file: 1.json
+  # - name: empty_scenario_1
+  #   episodes: 1
+  #   robot: rto
+  #   map: map_empty
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO:
+  #       file: 1.json
 
-  - name: empty_scenario_2
-    episodes: 1
-    robot: rto
-    map: map_empty
-    tm_robots: scenario
-    tm_obstacles: scenario
-    config:
-      SCENARIO: 
-        file: 2.json
+  # - name: empty_scenario_2
+  #   episodes: 1
+  #   robot: rto
+  #   map: map_empty
+  #   tm_robots: scenario
+  #   tm_obstacles: scenario
+  #   config:
+  #     SCENARIO: 
+  #       file: 2.json
 
   - name: empty_scenario_3
     episodes: 1
