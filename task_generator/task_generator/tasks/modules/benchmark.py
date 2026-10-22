@@ -31,6 +31,21 @@ def _get_rosmaster_pid() -> int:
     except Exception as e:
         raise RuntimeError("could not determine rosmaster pid") from e
 
+def _il_record_args(runid: str, stage_name: str) -> typing.List[str]:
+    """
+    record_il.launch arguments for a relaunch, empty if this launch does not record.
+    Each stage records into its own session, named after the run and the stage.
+    """
+    data_root = rosparam_get(str, "/il_session_recorder/data_root", "")
+    if not data_root:
+        return []
+    return [
+        "record_il:=true",
+        f"il_data_root:={data_root}",
+        f"il_operator:={rosparam_get(str, '/il_session_recorder/operator', '')}",
+        f"il_session:={runid}_{stage_name}",
+    ]
+
 class _Config(typing.NamedTuple):
 
     @classmethod
@@ -461,7 +476,8 @@ class Mod_Benchmark(TM_Module):
                     f"benchmark_suite:={rosparam_get(str, 'benchmark_suite', '')}",
                     f"rec_dir:={rosparam_get(str, 'rec_dir', '')}",
                     f"man_gap:={rosparam_get(str, 'man_gap', False)}",
-                    f"force_factor:={rosparam_get(float, 'force_factor', 0.0)}"
+                    f"force_factor:={rosparam_get(float, 'force_factor', 0.0)}",
+                    *_il_record_args(self._runid, suite_config.name),
                 ],
                 start_new_session=True,
                 env=os.environ.copy()
