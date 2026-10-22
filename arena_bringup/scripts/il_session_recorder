@@ -16,6 +16,7 @@ See dynamic_gap/docs/IL_DATA_COLLECTION_PLAN.md, section 1.6.
 """
 
 import csv
+import ctypes
 import datetime
 import os
 import shutil
@@ -82,6 +83,19 @@ def session_name(session, now=None):
     if session:
         return session
     return (now or datetime.datetime.now()).strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def check_session_name(session):
+    """Error message if the session name could leave <data_root>/il_gap_selection, else None."""
+    if session and (os.sep in session or (os.altsep and os.altsep in session) or session in (".", "..")):
+        return "session must be a plain folder name: {}".format(session)
+    return None
+
+
+def stop_with_parent():
+    """preexec_fn: rosbag gets SIGINT if the recorder dies, so it never runs on orphaned."""
+    PR_SET_PDEATHSIG = 1
+    ctypes.CDLL("libc.so.6", use_errno=True).prctl(PR_SET_PDEATHSIG, signal.SIGINT)
 
 
 def git(repo, *args):
@@ -155,13 +169,13 @@ class SessionRecorder:
         data_root = rospy.get_param("~data_root", "")
         roots = repo_roots(VERSIONED_PACKAGES)
 
-        error = check_data_root(data_root, roots.values())
+        session = rospy.get_param("~session", "")
+        error = check_data_root(data_root, roots.values()) or check_session_name(session)
         if error:
             rospy.logfatal("il_session_recorder: " + error)
             raise SystemExit(1)
 
-        self.session_dir = os.path.join(data_root, "il_gap_selection",
-                                        session_name(rospy.get_param("~session", "")))
+        self.session_dir = os.path.join(data_root, "il_gap_selection", session_name(session))
         if os.path.exists(self.session_dir) and os.listdir(self.session_dir):
             rospy.logfatal("il_session_recorder: session folder {} exists and is not empty".format(self.session_dir))
             raise SystemExit(1)
@@ -186,8 +200,11 @@ class SessionRecorder:
             csv.writer(f).writerow(["event", "episode", "wall_time", "sim_time", "start", "goal"])
 
         topics = il_topics(self.namespace) + list(rospy.get_param("~extra_topics", []))
+        # own process group (Ctrl-C in the terminal reaches the recorder, which
+        # stops rosbag in order); SIGINT if the recorder itself dies
         self.rosbag = subprocess.Popen(rosbag_command(topics, rospy.get_param("~split_size_mb", 2048)),
-                                       cwd=self.session_dir, start_new_session=True)
+                                       cwd=self.session_dir, start_new_session=True,
+                                       preexec_fn=stop_with_parent)
         rospy.loginfo("il_session_recorder: recording {} topics to {}".format(len(topics), self.session_dir))
 
         rospy.Subscriber("/scenario_reset_begin", Int16, lambda msg: self.episode_event("begin", msg))
@@ -220,7 +237,8 @@ class SessionRecorder:
         if self.rosbag.poll() is None:
             os.killpg(self.rosbag.pid, signal.SIGINT)
             try:
-                self.rosbag.wait(timeout=30)
+                # roslaunch escalates after 15 s
+                self.rosbag.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 os.killpg(self.rosbag.pid, signal.SIGKILL)
         with open(os.path.join(self.session_dir, "notes.txt"), "a") as f:
@@ -228,6 +246,9 @@ class SessionRecorder:
 
 
 if __name__ == "__main__":
-    rospy.init_node("il_session_recorder")
+    # a closed terminal (SIGHUP) or a plain kill (SIGTERM) still closes the bag
+    rospy.init_node("il_session_recorder", disable_signals=False)
+    for sig in (signal.SIGHUP, signal.SIGTERM):
+        signal.signal(sig, lambda signum, frame: rospy.signal_shutdown("signal {}".format(signum)))
     SessionRecorder()
     rospy.spin()

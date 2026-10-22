@@ -12,7 +12,9 @@
   <arg name="operator" default="" />
   <arg name="instruction" default="" doc="instruction given to the operator" />
 
-  <node pkg="arena_bringup" type="il_session_recorder" name="il_session_recorder" output="screen">
+  <!-- required: if recording cannot start (e.g. data_root unset or inside a
+       repo), the whole launch stops instead of running unrecorded -->
+  <node pkg="arena_bringup" type="il_session_recorder" name="il_session_recorder" output="screen" required="true">
     <param name="data_root" value="$(arg data_root)" />
     <param name="session" value="$(arg session)" />
     <param name="namespace" value="$(arg namespace)" />

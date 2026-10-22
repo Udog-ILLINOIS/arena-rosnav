@@ -87,7 +87,25 @@ class SessionRecorderTest(unittest.TestCase):
             self.assertIsNone(self.m.check_data_root(repo + "_data", [repo]))
 
 
+class SessionNameTest(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.m = load_script()
+
+    def test_plain_names_only(self):
+        self.assertIsNone(self.m.check_session_name(""))
+        self.assertIsNone(self.m.check_session_name("pilot_01"))
+        for bad in ["/home/x/arena_ws/src/x", "../x", "a/b", "..", "."]:
+            self.assertIsNotNone(self.m.check_session_name(bad), bad)
+
+
 class LaunchFileTest(unittest.TestCase):
+
+    def test_recorder_is_required(self):
+        nodes = list(ET.parse(LAUNCH).getroot().iter("node"))
+        self.assertEqual(nodes[0].get("required"), "true")
+
 
     def test_data_root_has_no_default(self):
         args = {a.get("name"): a for a in ET.parse(LAUNCH).getroot().iter("arg")}
