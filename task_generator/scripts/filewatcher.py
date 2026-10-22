@@ -57,6 +57,17 @@ def encode(var: Any):
 def get_or_ignore(obj: dict, key: str) -> dict:
     return {key: obj.get(key)} if key in obj else {}
 
+def task_config_name(tm_modules: str, master_uri: str) -> str:
+    """
+    The benchmark module writes each stage's task config to a file per ROS
+    master port (benchmark.py, TASK_GENERATOR_CONFIG); every other launch uses
+    the shared task_generator.yaml.
+    """
+    if "benchmark" in [mod for mod in tm_modules.split(",") if mod != ""]:
+        port = master_uri.split(":")[-1].rstrip("/")
+        return f"task_generator_{port}.yaml"
+    return "task_generator.yaml"
+
 def run(namespace: Optional[str] = None):
 
     if namespace is None:
@@ -69,8 +80,12 @@ def run(namespace: Optional[str] = None):
     FILE_TASK_CONFIG = os.path.join(
         rospkg.RosPack().get_path("arena_bringup"),
         "configs",
-        "task_generator.yaml"
+        task_config_name(
+            str(rospy.get_param("tm_modules", "")),
+            os.environ.get("ROS_MASTER_URI", "http://localhost:11311")
+        )
     )
+    rospy.loginfo(f"task config file: {FILE_TASK_CONFIG}")
 
     class TaskConfigHandler(watchdog.events.FileSystemEventHandler):
 
