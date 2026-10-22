@@ -92,10 +92,15 @@ def check_session_name(session):
     return None
 
 
+# resolved before any fork: preexec_fn runs after fork() in a process with
+# rospy threads, where loading a library could deadlock
+_prctl = ctypes.CDLL(None, use_errno=True).prctl
+PR_SET_PDEATHSIG = 1
+
+
 def stop_with_parent():
     """preexec_fn: rosbag gets SIGINT if the recorder dies, so it never runs on orphaned."""
-    PR_SET_PDEATHSIG = 1
-    ctypes.CDLL("libc.so.6", use_errno=True).prctl(PR_SET_PDEATHSIG, signal.SIGINT)
+    _prctl(PR_SET_PDEATHSIG, signal.SIGINT)
 
 
 def git(repo, *args):
