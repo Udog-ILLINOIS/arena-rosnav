@@ -46,6 +46,15 @@ def _il_record_args(runid: str, stage_name: str) -> typing.List[str]:
         f"il_session:={runid}_{stage_name}",
     ]
 
+def _ped_vmax_args() -> typing.List[str]:
+    """
+    ped_vmax launch argument for a relaunch, empty if this launch did not set it.
+    """
+    ped_vmax = rosparam_get(float, "ped_vmax", None)
+    if ped_vmax is None:
+        return []
+    return [f"ped_vmax:={ped_vmax}"]
+
 class _Config(typing.NamedTuple):
 
     @classmethod
@@ -477,6 +486,7 @@ class Mod_Benchmark(TM_Module):
                     f"rec_dir:={rosparam_get(str, 'rec_dir', '')}",
                     f"man_gap:={rosparam_get(str, 'man_gap', False)}",
                     f"force_factor:={rosparam_get(float, 'force_factor', 0.0)}",
+                    *_ped_vmax_args(),
                     *_il_record_args(self._runid, suite_config.name),
                 ],
                 start_new_session=True,

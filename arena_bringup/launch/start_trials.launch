@@ -28,6 +28,7 @@
   <arg name="benchmark_launch_file" default="start_trials.launch" />
   <arg name="man_gap" default="false" />
   <arg name="force_factor" default="" />
+  <arg name="ped_vmax" default="" doc="pedestrian maximum speed in m/s for every pedestrian; empty: 0.5 (task_generator default)" />
 
   <arg name="entity_manager" default="pedsim" doc="[pedsim]" />
   <arg name="pedsim" value="$(eval entity_manager == 'pedsim')" />
@@ -101,6 +102,9 @@
   <param name="rec_dir" value="$(arg rec_dir)" if="$(eval arg('rec_dir') != '')" />
   <param name="man_gap" value="$(arg man_gap)" />
   <param name="force_factor" value="$(arg force_factor)" if="$(eval arg('force_factor') != '')"/>
+  <param name="ped_vmax" type="double" value="$(arg ped_vmax)" if="$(eval arg('ped_vmax') != '')"/>
+  <!-- read once by the task generator (constants.Pedsim.VMAX) when it spawns pedestrians -->
+  <param name="task_generator_node/configuration/pedsim/default_actor_config/VMAX" type="double" value="$(arg ped_vmax)" if="$(eval arg('ped_vmax') != '')"/>
 
   <rosparam command="load" file="$(find arena_bringup)/params/flatland.yaml" />
   <rosparam command="load" file="$(find arena_bringup)/params/map_generator.yaml" ns="map_generator" />
