@@ -2,6 +2,7 @@
 
 import dataclasses
 import os
+import threading
 import traceback
 from typing import Dict, List
 
@@ -105,6 +106,10 @@ class TaskGenerator:
 
     def __init__(self, namespace: str = "/") -> None:
         self._namespace = Namespace(namespace)
+
+        # one reset at a time: the status timer and the reset_task service
+        # run on different threads
+        self._reset_lock = threading.RLock()
 
         # Params
 
@@ -313,30 +318,38 @@ class TaskGenerator:
     # RUNTIME
 
     def reset_task(self, **kwargs):
-        self._pub_scenario_reset_begin.publish(self._number_of_resets)
-        print("reset_task1")
-        self._start_time = rospy.get_time()
-        print("reset_task2")
-        self._env_wrapper.before_reset_task()
-        print("reset_task3")
-        rospy.loginfo("resetting")
-        print("reset_task4")
-        is_end = self._task.reset(callback=lambda: False, **kwargs)
-        print("reset_task5")
-        self._env_wrapper.after_reset_task()
-        print("reset_task6")
-        self._pub_scenario_reset.publish(self._number_of_resets)
-        self._number_of_resets += 1
-        self._send_end_message_on_end()
-        print("reset_task7")
-        print("reset_task8")
-        rospy.loginfo("=============")
-        rospy.loginfo("Task Reset!")
-        rospy.loginfo("=============")
+        # one reset at a time (status timer and reset_task service threads)
+        with self._reset_lock:
+            self._pub_scenario_reset_begin.publish(self._number_of_resets)
+            print("reset_task1")
+            self._start_time = rospy.get_time()
+            print("reset_task2")
+            self._env_wrapper.before_reset_task()
+            print("reset_task3")
+            rospy.loginfo("resetting")
+            print("reset_task4")
+            is_end = self._task.reset(callback=lambda: False, **kwargs)
+            print("reset_task5")
+            self._env_wrapper.after_reset_task()
+            print("reset_task6")
+            self._pub_scenario_reset.publish(self._number_of_resets)
+            self._number_of_resets += 1
+            self._send_end_message_on_end()
+            print("reset_task7")
+            print("reset_task8")
+            rospy.loginfo("=============")
+            rospy.loginfo("Task Reset!")
+            rospy.loginfo("=============")
 
     def _check_task_status(self, *args, **kwargs):
-        if self._task.is_done:
-            self.reset_task()
+        # a reset already running (e.g. from the service) finishes the episode
+        if not self._reset_lock.acquire(blocking=False):
+            return
+        try:
+            if self._task.is_done:
+                self.reset_task()
+        finally:
+            self._reset_lock.release()
 
     def _reset_task_srv_callback(self, req: std_srvs.EmptyRequest):
         rospy.logdebug("Task Generator received task-reset request!")
