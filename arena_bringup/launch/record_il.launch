@@ -1,0 +1,25 @@
+<launch>
+  <!-- Imitation learning recording for manual gap selection: rosbag of the
+       planner samples, cursor, sensors and task, plus session metadata.
+       See dynamic_gap/docs/IL_DATA_COLLECTION_PLAN.md, section 1.6. -->
+
+  <arg name="data_root" doc="absolute folder for recordings, outside every git repo (required)" />
+  <arg name="session" default="" doc="session folder name; empty: date and time" />
+  <arg name="namespace" default="rto" doc="robot namespace" />
+  <arg name="rviz_config" default="$(find dynamic_gap)/rviz/arena.rviz" doc="RViz config saved with the session" />
+  <arg name="split_size_mb" default="2048" doc="start a new bag after this many MB" />
+  <arg name="min_free_gb" default="5" doc="warn below this much free disk space" />
+  <arg name="operator" default="" />
+  <arg name="instruction" default="" doc="instruction given to the operator" />
+
+  <node pkg="arena_bringup" type="il_session_recorder" name="il_session_recorder" output="screen">
+    <param name="data_root" value="$(arg data_root)" />
+    <param name="session" value="$(arg session)" />
+    <param name="namespace" value="$(arg namespace)" />
+    <param name="rviz_config" value="$(arg rviz_config)" />
+    <param name="split_size_mb" value="$(arg split_size_mb)" />
+    <param name="min_free_gb" value="$(arg min_free_gb)" />
+    <param name="operator" value="$(arg operator)" />
+    <param name="instruction" value="$(arg instruction)" />
+  </node>
+</launch>

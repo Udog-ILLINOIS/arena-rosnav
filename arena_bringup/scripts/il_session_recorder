@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""
+Records one imitation learning session (manual gap selection) to rosbag.
+
+Creates <data_root>/il_gap_selection/<session>/ with
+    session_0.bag, session_1.bag, ...  rosbag record (lz4, split by size, latched topics repeated)
+    params.yaml       all rosparams when recording starts
+    versions.yaml     commit, branch and status of every repo of the packages used
+    versions/*.diff   uncommitted changes of those repos
+    view.rviz         the RViz config used
+    notes.txt         operator, instruction given, anything odd (filled in by hand)
+    episodes.csv      one row per /scenario_reset_begin and /scenario_reset
+and warns when free disk space runs low (rosbag stops quietly on a full disk).
+
+See dynamic_gap/docs/IL_DATA_COLLECTION_PLAN.md, section 1.6.
+"""
+
+import csv
+import datetime
+import os
+import shutil
+import signal
+import subprocess
+
+import rospkg
+import rospy
+import yaml
+from std_msgs.msg import Int16
+
+# packages whose repos are versioned with the data
+VERSIONED_PACKAGES = [
+    "dynamic_gap",
+    "manual_gap_msgs",
+    "rviz_plugins",
+    "arena_bringup",
+    "task_generator",
+    "arena_evaluation",
+    "arena_simulation_setup",
+]
+
+
+def il_topics(namespace):
+    """Topics of one session; namespace is the robot namespace, e.g. 'rto'."""
+    ns = "/" + namespace.strip("/")
+    return [
+        # observation
+        ns + "/scan",
+        ns + "/odom",
+        ns + "/acc",
+        ns + "/cmd_vel",
+        "/tf",
+        "/tf_static",
+        "/map",
+        "/map_metadata",
+        # task
+        ns + "/move_base_simple/goal",
+        ns + "/move_base_flex/NavfnROS/plan",
+        "/scenario_reset_begin",
+        "/scenario_reset",
+        "/scenario_finished",
+        "/pedsim_simulator/pedsim_agents_data",
+        # manual gap selection
+        ns + "/gap_selection_cursor",
+        ns + "/traj_creation_point",
+        ns + "/manual_traj_selection",
+        ns + "/manual_gap_sample",
+        ns + "/curr_exec_dg_traj",
+    ]
+
+
+def rosbag_command(topics, split_size_mb):
+    return [
+        "rosbag", "record",
+        "--lz4",
+        "--split", "--size={}".format(int(split_size_mb)),
+        "--repeat-latched",
+        "-O", "session.bag",
+    ] + list(topics) + ["__name:=il_rosbag_record"]
+
+
+def session_name(session, now=None):
+    if session:
+        return session
+    return (now or datetime.datetime.now()).strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def git(repo, *args):
+    return subprocess.run(["git", "-C", repo] + list(args), stdout=subprocess.PIPE,
+                          stderr=subprocess.DEVNULL, universal_newlines=True).stdout.strip()
+
+
+def repo_roots(packages):
+    """{package: repo root} for the packages that are found and inside a git repo."""
+    roots = {}
+    rospack = rospkg.RosPack()
+    for package in packages:
+        try:
+            path = os.path.realpath(rospack.get_path(package))
+        except rospkg.ResourceNotFound:
+            continue
+        root = git(path, "rev-parse", "--show-toplevel")
+        if root:
+            roots[package] = root
+            # a repo nested in another that also tracks its files (arena_bringup
+            # in arena-rosnav): record both. A parent that only holds it as a
+            # submodule is not recorded.
+            outer = git(os.path.dirname(root), "rev-parse", "--show-toplevel")
+            if outer and outer != root and git(outer, "ls-files", os.path.relpath(os.path.join(path, "package.xml"), outer)):
+                roots[package + " (enclosing repo)"] = outer
+    return roots
+
+
+def is_inside(path, folder):
+    path, folder = os.path.realpath(path), os.path.realpath(folder)
+    return path == folder or path.startswith(folder.rstrip(os.sep) + os.sep)
+
+
+def check_data_root(data_root, roots):
+    """Error message if data_root cannot hold the data, else None."""
+    if not data_root:
+        return "data_root is not set"
+    if not os.path.isabs(data_root):
+        return "data_root must be an absolute path: {}".format(data_root)
+    for root in set(roots):
+        if is_inside(data_root, root):
+            return "data_root {} is inside the git repo {}; keep recordings out of the repos".format(data_root, root)
+    return None
+
+
+def write_versions(session_dir, roots):
+    versions = {}
+    os.makedirs(os.path.join(session_dir, "versions"), exist_ok=True)
+    for root in sorted(set(roots.values())):
+        name = os.path.basename(root)
+        diff = git(root, "diff", "HEAD")
+        versions[name] = {
+            "path": root,
+            "commit": git(root, "rev-parse", "HEAD"),
+            "branch": git(root, "rev-parse", "--abbrev-ref", "HEAD"),
+            "dirty": bool(git(root, "status", "--porcelain", "--untracked-files=no")),
+            "packages": sorted(p for p, r in roots.items() if r == root),
+        }
+        if diff:
+            with open(os.path.join(session_dir, "versions", name + ".diff"), "w") as f:
+                f.write(diff + "\n")
+    with open(os.path.join(session_dir, "versions.yaml"), "w") as f:
+        yaml.safe_dump(versions, f, default_flow_style=False)
+
+
+class SessionRecorder:
+
+    def __init__(self):
+        self.namespace = rospy.get_param("~namespace", "rto")
+        self.min_free_gb = float(rospy.get_param("~min_free_gb", 5.0))
+        data_root = rospy.get_param("~data_root", "")
+        roots = repo_roots(VERSIONED_PACKAGES)
+
+        error = check_data_root(data_root, roots.values())
+        if error:
+            rospy.logfatal("il_session_recorder: " + error)
+            raise SystemExit(1)
+
+        self.session_dir = os.path.join(data_root, "il_gap_selection",
+                                        session_name(rospy.get_param("~session", "")))
+        if os.path.exists(self.session_dir) and os.listdir(self.session_dir):
+            rospy.logfatal("il_session_recorder: session folder {} exists and is not empty".format(self.session_dir))
+            raise SystemExit(1)
+        os.makedirs(self.session_dir, exist_ok=True)
+
+        with open(os.path.join(self.session_dir, "params.yaml"), "w") as f:
+            yaml.safe_dump(rospy.get_param("/"), f, default_flow_style=False)
+        write_versions(self.session_dir, roots)
+
+        rviz_config = rospy.get_param("~rviz_config", "")
+        if rviz_config and os.path.exists(rviz_config):
+            shutil.copy(rviz_config, os.path.join(self.session_dir, "view.rviz"))
+
+        with open(os.path.join(self.session_dir, "notes.txt"), "w") as f:
+            f.write("operator: {}\n".format(rospy.get_param("~operator", "")))
+            f.write("instruction: {}\n".format(rospy.get_param("~instruction", "")))
+            f.write("started: {}\n".format(datetime.datetime.now().isoformat(timespec="seconds")))
+            f.write("notes:\n")
+
+        self.episodes_file = os.path.join(self.session_dir, "episodes.csv")
+        with open(self.episodes_file, "w", newline="") as f:
+            csv.writer(f).writerow(["event", "episode", "wall_time", "sim_time", "start", "goal"])
+
+        topics = il_topics(self.namespace) + list(rospy.get_param("~extra_topics", []))
+        self.rosbag = subprocess.Popen(rosbag_command(topics, rospy.get_param("~split_size_mb", 2048)),
+                                       cwd=self.session_dir, start_new_session=True)
+        rospy.loginfo("il_session_recorder: recording {} topics to {}".format(len(topics), self.session_dir))
+
+        rospy.Subscriber("/scenario_reset_begin", Int16, lambda msg: self.episode_event("begin", msg))
+        rospy.Subscriber("/scenario_reset", Int16, lambda msg: self.episode_event("reset", msg))
+        self.disk_timer = rospy.Timer(rospy.Duration(30.0), self.check_disk, oneshot=False)
+        rospy.on_shutdown(self.shutdown)
+        self.check_disk()
+
+    def episode_event(self, event, msg):
+        # the task generator sets start and goal before it publishes scenario_reset
+        ns = "/" + self.namespace.strip("/") + "/"
+        with open(self.episodes_file, "a", newline="") as f:
+            csv.writer(f).writerow([
+                event, msg.data, "{:.3f}".format(datetime.datetime.now().timestamp()),
+                "{:.3f}".format(rospy.get_time()),
+                rospy.get_param(ns + "start", ""), rospy.get_param(ns + "goal", ""),
+            ])
+
+    def check_disk(self, *args):
+        free_gb = shutil.disk_usage(self.session_dir).free / 1e9
+        if free_gb < self.min_free_gb / 5:
+            rospy.logerr("il_session_recorder: only {:.1f} GB free, rosbag will stop".format(free_gb))
+        elif free_gb < self.min_free_gb:
+            rospy.logwarn("il_session_recorder: {:.1f} GB free".format(free_gb))
+        if self.rosbag.poll() is not None:
+            rospy.logerr("il_session_recorder: rosbag record exited with code {}".format(self.rosbag.returncode))
+
+    def shutdown(self):
+        # SIGINT lets rosbag close the current bag (no .bag.active left behind)
+        if self.rosbag.poll() is None:
+            os.killpg(self.rosbag.pid, signal.SIGINT)
+            try:
+                self.rosbag.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                os.killpg(self.rosbag.pid, signal.SIGKILL)
+        with open(os.path.join(self.session_dir, "notes.txt"), "a") as f:
+            f.write("stopped: {}\n".format(datetime.datetime.now().isoformat(timespec="seconds")))
+
+
+if __name__ == "__main__":
+    rospy.init_node("il_session_recorder")
+    SessionRecorder()
+    rospy.spin()

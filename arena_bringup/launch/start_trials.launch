@@ -46,6 +46,12 @@
   <arg name="record_data_dir" default="auto:" />
   <param name="record_data_dir" type="str" value="$(arg record_data_dir)" if="$(eval arg('record_data'))"/>
 
+  <!-- imitation learning rosbag (manual gap selection), see launch/record_il.launch -->
+  <arg name="record_il" default="false" />
+  <arg name="il_data_root" default="" doc="absolute folder for IL recordings, outside the git repos" />
+  <arg name="il_session" default="" doc="session folder name; empty: date and time" />
+  <arg name="il_operator" default="" />
+
   <param name="robot_setup_file" value="$(arg robot_setup_file)" />
   <param name="model" value="$(arg model)" />
   <param name="inter_planner" value="$(arg inter_planner)"/>
@@ -172,6 +178,12 @@
   <!-- <node type="create_config_file.py" pkg="rviz_utils" name="rviz_config_file_creator" /> -->
   
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find dynamic_gap)/rviz/arena.rviz" />
+
+  <include file="$(find arena_bringup)/launch/record_il.launch" if="$(arg record_il)">
+    <arg name="data_root" value="$(arg il_data_root)" />
+    <arg name="session" value="$(arg il_session)" />
+    <arg name="operator" value="$(arg il_operator)" />
+  </include>
 
   <node type="visualize_robot_model.py" pkg="rviz_utils" name="visualize_robot_model" output="screen" />
 
