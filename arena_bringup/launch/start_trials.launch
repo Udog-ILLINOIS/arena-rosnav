@@ -68,6 +68,7 @@
   <arg name="visualization" default="rviz" doc="[rviz, flatland]" />
   <arg name="show_rviz" default="true" doc="Enables rviz in gazebo" />
   <arg name="rviz_file" default="nav"/>
+  <arg name="rviz_prefix" default="" doc="launch-prefix for RViz, e.g. gdb for a crash backtrace" />
   
   <arg name="auto_reset" default="true"/>
 
@@ -177,7 +178,7 @@
 
   <!-- <node type="create_config_file.py" pkg="rviz_utils" name="rviz_config_file_creator" /> -->
   
-  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find dynamic_gap)/rviz/arena.rviz" />
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find dynamic_gap)/rviz/arena.rviz" launch-prefix="$(arg rviz_prefix)" />
 
   <include file="$(find arena_bringup)/launch/record_il.launch" if="$(arg record_il)">
     <arg name="data_root" value="$(arg il_data_root)" />
