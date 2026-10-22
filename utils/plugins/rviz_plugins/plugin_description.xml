@@ -38,7 +38,7 @@
         type="rviz::ContinuousGapSelectionTool"
         base_class_type="rviz::Tool">
     <description>
-    Continuously publishes cursor position to /gap_selection_point for gap trajectory selection
+    Manual gap selection: publishes the ground point under the mouse (manual_gap_msgs/CursorState) on &lt;prefix&gt;gap_selection_cursor at 10 Hz; left-click publishes a click-to-move point on &lt;prefix&gt;traj_creation_point
     </description>
   </class>
 </library>

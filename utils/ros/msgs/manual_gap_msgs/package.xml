@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>manual_gap_msgs</name>
+  <version>0.1.0</version>
+  <description>Messages for recording manual gap selection (imitation learning data): the RViz cursor state and the per-tick sample of the dynamic_gap planner.</description>
+
+  <maintainer email="ewanjm2@illinois.edu">Udog-ILLINOIS</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>message_generation</build_depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <exec_depend>message_runtime</exec_depend>
+</package>

@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   rviz
   #multi_map_server
   roscpp
+  manual_gap_msgs
 )
 
 ###################################
@@ -86,7 +87,17 @@ include_directories(
 
 add_library(${PROJECT_NAME} ${SOURCE_FILES})
 
-target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(${PROJECT_NAME}_test test/test_cursor_state.cpp)
+  if(TARGET ${PROJECT_NAME}_test)
+    target_include_directories(${PROJECT_NAME}_test PRIVATE src)
+    target_link_libraries(${PROJECT_NAME}_test ${catkin_LIBRARIES})
+    add_dependencies(${PROJECT_NAME}_test ${catkin_EXPORTED_TARGETS})
+  endif()
+endif()
 
 install(TARGETS
   ${PROJECT_NAME}
