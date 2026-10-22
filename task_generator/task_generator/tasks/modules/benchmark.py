@@ -55,6 +55,17 @@ def _ped_vmax_args() -> typing.List[str]:
         return []
     return [f"ped_vmax:={ped_vmax}"]
 
+def _man_gap_selection_args() -> typing.List[str]:
+    """
+    Manual gap selection launch arguments for a relaunch, empty for those this launch did not set.
+    """
+    args = []
+    for name in ("man_gap_max_bearing_deg", "man_gap_switch_ratio"):
+        value = rosparam_get(float, name, None)
+        if value is not None:
+            args.append(f"{name}:={value}")
+    return args
+
 class _Config(typing.NamedTuple):
 
     @classmethod
@@ -487,6 +498,7 @@ class Mod_Benchmark(TM_Module):
                     f"man_gap:={rosparam_get(str, 'man_gap', False)}",
                     f"force_factor:={rosparam_get(float, 'force_factor', 0.0)}",
                     *_ped_vmax_args(),
+                    *_man_gap_selection_args(),
                     *_il_record_args(self._runid, suite_config.name),
                 ],
                 start_new_session=True,

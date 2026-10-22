@@ -27,6 +27,8 @@
   <arg name="rec_dir" default="" />
   <arg name="benchmark_launch_file" default="start_trials.launch" />
   <arg name="man_gap" default="false" />
+  <arg name="man_gap_max_bearing_deg" default="60" doc="manual gap selection: only gaps whose trajectory ends within this angle (deg) of the cursor, seen from the robot, are selectable" />
+  <arg name="man_gap_switch_ratio" default="0.7" doc="manual gap selection: another gap replaces the followed one only if its distance to the cursor is below this fraction of the followed one's" />
   <arg name="force_factor" default="" />
   <arg name="ped_vmax" default="" doc="pedestrian maximum speed in m/s for every pedestrian; empty: 0.5 (task_generator default)" />
 
@@ -101,6 +103,8 @@
   <param name="benchmark_launch_file" value="$(arg benchmark_launch_file)" />
   <param name="rec_dir" value="$(arg rec_dir)" if="$(eval arg('rec_dir') != '')" />
   <param name="man_gap" value="$(arg man_gap)" />
+  <param name="man_gap_max_bearing_deg" type="double" value="$(arg man_gap_max_bearing_deg)" />
+  <param name="man_gap_switch_ratio" type="double" value="$(arg man_gap_switch_ratio)" />
   <param name="force_factor" value="$(arg force_factor)" if="$(eval arg('force_factor') != '')"/>
   <param name="ped_vmax" type="double" value="$(arg ped_vmax)" if="$(eval arg('ped_vmax') != '')"/>
   <!-- read once by the task generator (constants.Pedsim.VMAX) when it spawns pedestrians -->
