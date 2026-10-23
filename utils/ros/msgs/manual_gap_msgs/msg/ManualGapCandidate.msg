@@ -27,3 +27,8 @@ geometry_msgs/Pose    terminal_pose    # last pose of the trajectory; zero if no
 geometry_msgs/Point[] path             # trajectory, downsampled
 float32 cursor_dist                    # cursor to terminal pose (m); NaN if no cursor or not feasible
 float32 cursor_bearing_diff            # bearing(cursor) - bearing(terminal pose), from the robot (rad); NaN if none
+
+# DynamicGap's cost of this candidate's trajectory, as pickTraj computes it (lower is better)
+float32 dg_cost                        # dg_terminal_cost + dg_clearance_cost; inf if the path has < 2 poses; NaN if not scored
+float32 dg_terminal_cost               # Q_f * distance(terminal pose, local waypoint)
+float32 dg_clearance_cost              # mean pose-wise cost against the propagated scans

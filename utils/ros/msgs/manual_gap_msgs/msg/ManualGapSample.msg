@@ -3,7 +3,7 @@
 # A tick is a usable expert label when
 #   source == SOURCE_GAP_CURSOR && cursor_live && !in_reset_window
 
-uint16 SCHEMA_VERSION = 1
+uint16 SCHEMA_VERSION = 2   # 2: dg_pick_idx and per-candidate dg_* costs
 
 uint8 SOURCE_NONE          = 0   # no selection this tick
 uint8 SOURCE_GAP_CURSOR    = 1   # a gap was selected from the cursor
@@ -49,3 +49,6 @@ int32   selected_left_model_id
 int32   selected_right_model_id
 geometry_msgs/Point click_point_odom   # target of SOURCE_CLICK_TO_MOVE
 bool    hold_still               # the robot was commanded to stand still this tick
+
+# DynamicGap's own choice (pickTraj on this tick's costs), recorded only; it is not executed
+int32   dg_pick_idx              # position in candidates[] of the lowest-cost gap trajectory; -1 if none or not planned
