@@ -1,0 +1,12 @@
+# IL collection: gru_learn bottom-left corner (as 50ped_daniel's v6) without pedestrians,
+# so the operator's data shows heading for the goal with nothing in the way.
+stages:
+  - name: gru_learn_0ped_v6
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    config:
+      SCENARIO:
+        file: 0_0ped_middle_start_v6.json

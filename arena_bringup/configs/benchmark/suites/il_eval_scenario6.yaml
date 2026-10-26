@@ -1,0 +1,13 @@
+# Closed-loop check of a learned gap scorer on the case with_terminal_seed0 failed:
+# gru_learn bottom-left corner, 50 pedestrians (as 50ped_daniel's gru_learn_scenario_6).
+stages:
+  - name: gru_learn_scenario_6_eval
+    episodes: 2
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 180
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v6.json

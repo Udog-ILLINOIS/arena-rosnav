@@ -1,0 +1,168 @@
+# Small designed IL dataset v1 (manual gap selection), map gru_learn, 26 episodes.
+# All stages share one map, so the run is a single launch and one IL session
+# (named after the first stage). Scenario files are used as they are.
+#
+#   block                     scenarios                     peds  episodes
+#   A interaction primitives  CS1..CS6                      1-3   6 x 1
+#   B 35 ped, mixed static    smartgap 1, 3, 6, 8           35    4 x 2
+#   C 50 ped, four corners    middle_start v2, v4, v6, v8   50    4 x 3
+#
+# Held out (not in this suite): middle_start v3, v5, v7, v9, v10, v11 and smartgap 11
+# repeat the corners from other starts, so keep them for evaluation.
+stages:
+  # A: interaction primitives, few pedestrians, short (goal 11-27 m away)
+  - name: il_small_cs1_reopening
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 90
+    config:
+      SCENARIO:
+        file: CS1_reopening.json
+
+  - name: il_small_cs2_overtaking
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 90
+    config:
+      SCENARIO:
+        file: CS2_overtaking.json
+
+  - name: il_small_cs3_approaching
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 90
+    config:
+      SCENARIO:
+        file: CS3_approaching.json
+
+  - name: il_small_cs4_intersection
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 90
+    config:
+      SCENARIO:
+        file: CS4_intersection.json
+
+  - name: il_small_cs5_redirecting
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 90
+    config:
+      SCENARIO:
+        file: CS5_redirecting.json
+
+  - name: il_small_cs6_interrupting
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 90
+    config:
+      SCENARIO:
+        file: CS6_interrupting.json
+
+  # B: 35 pedestrians, different starts and headings, 0 to 12 static obstacles
+  - name: il_small_sg1_35ped
+    episodes: 2
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: smartgap_scenario1.json
+
+  - name: il_small_sg3_35ped
+    episodes: 2
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: smartgap_scenario3.json
+
+  - name: il_small_sg6_35ped_static
+    episodes: 2
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: smartgap_scenario6.json
+
+  - name: il_small_sg8_35ped_static
+    episodes: 2
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: smartgap_scenario8.json
+
+  # C: 50 pedestrians, start near the middle, one goal per corner
+  - name: il_small_v2_50ped_bottom_right
+    episodes: 3
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v2.json
+
+  - name: il_small_v4_50ped_top_right
+    episodes: 3
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v4.json
+
+  - name: il_small_v6_50ped_bottom_left
+    episodes: 3
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v6.json
+
+  - name: il_small_v8_50ped_top_left
+    episodes: 3
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v8.json
