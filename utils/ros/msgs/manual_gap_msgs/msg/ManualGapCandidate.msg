@@ -32,3 +32,7 @@ float32 cursor_bearing_diff            # bearing(cursor) - bearing(terminal pose
 float32 dg_cost                        # dg_terminal_cost + dg_clearance_cost; inf if the path has < 2 poses; NaN if not scored
 float32 dg_terminal_cost               # Q_f * distance(terminal pose, local waypoint)
 float32 dg_clearance_cost              # mean pose-wise cost against the propagated scans
+
+# learned gap scorer (/learned_gap_scorer): its score of this candidate (higher is chosen);
+# NaN if the scorer did not run this tick
+float32 model_score

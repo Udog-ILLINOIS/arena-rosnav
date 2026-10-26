@@ -32,5 +32,27 @@ class TestBenchmarkManGapSelection(unittest.TestCase):
         self.assertEqual([], self._args({}))
 
 
+class TestBenchmarkLearnedGapScorer(unittest.TestCase):
+    """A benchmark relaunch keeps the learned gap scorer and its model."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.benchmark = load_benchmark_module()
+
+    def _args(self, params):
+        def get(cast, name, default=None):
+            return cast(params[name]) if name in params else default
+        with mock.patch.object(self.benchmark, "rosparam_get", side_effect=get):
+            return self.benchmark._learned_gap_scorer_args()
+
+    def test_scorer_is_forwarded(self):
+        self.assertEqual(["learned_gap_scorer:=true", "learned_gap_scorer_path:=/m/gap_scorer.json"],
+                         self._args({"learned_gap_scorer": True, "learned_gap_scorer_path": "/m/gap_scorer.json"}))
+
+    def test_nothing_when_off(self):
+        self.assertEqual([], self._args({"learned_gap_scorer": False, "learned_gap_scorer_path": "/m/x.json"}))
+        self.assertEqual([], self._args({}))
+
+
 if __name__ == "__main__":
     unittest.main()

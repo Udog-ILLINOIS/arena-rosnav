@@ -29,6 +29,9 @@
   <arg name="man_gap" default="false" />
   <arg name="man_gap_max_bearing_deg" default="60" doc="manual gap selection: only gaps whose trajectory ends within this angle (deg) of the cursor, seen from the robot, are selectable" />
   <arg name="man_gap_switch_ratio" default="0.7" doc="manual gap selection: another gap replaces the followed one only if its distance to the cursor is below this fraction of the followed one's" />
+  <arg name="learned_gap_scorer" default="false" doc="dynamic_gap: a learned gap scorer selects the gap instead of DynamicGap (and instead of manual selection); without a usable score the robot holds still" />
+  <arg name="learned_gap_scorer_path" default="" doc="learned gap scorer: the gap_scorer.json written by il_train / il_export_scorer" />
+  <arg name="il_goal_cursor" default="false" doc="manual gap selection driven by dynamic_gap's il_goal_cursor (cursor held toward the goal) instead of a person; needs man_gap:=true" />
   <arg name="force_factor" default="" />
   <arg name="ped_vmax" default="" doc="pedestrian maximum speed in m/s for every pedestrian; empty: 0.5 (task_generator default)" />
 
@@ -105,6 +108,9 @@
   <param name="man_gap" value="$(arg man_gap)" />
   <param name="man_gap_max_bearing_deg" type="double" value="$(arg man_gap_max_bearing_deg)" />
   <param name="man_gap_switch_ratio" type="double" value="$(arg man_gap_switch_ratio)" />
+  <param name="learned_gap_scorer" type="bool" value="$(arg learned_gap_scorer)" />
+  <param name="learned_gap_scorer_path" type="str" value="$(arg learned_gap_scorer_path)" />
+  <param name="il_goal_cursor" type="bool" value="$(arg il_goal_cursor)" />
   <param name="force_factor" value="$(arg force_factor)" if="$(eval arg('force_factor') != '')"/>
   <param name="ped_vmax" type="double" value="$(arg ped_vmax)" if="$(eval arg('ped_vmax') != '')"/>
   <!-- read once by the task generator (constants.Pedsim.VMAX) when it spawns pedestrians -->
@@ -187,6 +193,8 @@
   <!-- <node type="create_config_file.py" pkg="rviz_utils" name="rviz_config_file_creator" /> -->
   
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find dynamic_gap)/rviz/arena.rviz" launch-prefix="$(arg rviz_prefix)" />
+
+  <node type="il_goal_cursor" name="il_goal_cursor" pkg="dynamic_gap" ns="$(arg model)" output="screen" if="$(arg il_goal_cursor)" />
 
   <include file="$(find arena_bringup)/launch/record_il.launch" if="$(arg record_il)">
     <arg name="data_root" value="$(arg il_data_root)" />

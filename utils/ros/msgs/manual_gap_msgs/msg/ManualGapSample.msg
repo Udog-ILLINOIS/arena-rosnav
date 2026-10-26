@@ -3,12 +3,12 @@
 # A tick is a usable expert label when
 #   source == SOURCE_GAP_CURSOR && cursor_live && !in_reset_window
 
-uint16 SCHEMA_VERSION = 2   # 2: dg_pick_idx and per-candidate dg_* costs
+uint16 SCHEMA_VERSION = 3   # 2: dg_pick_idx and per-candidate dg_* costs; 3: per-candidate model_score
 
 uint8 SOURCE_NONE          = 0   # no selection this tick
 uint8 SOURCE_GAP_CURSOR    = 1   # a gap was selected from the cursor
 uint8 SOURCE_CLICK_TO_MOVE = 2   # following a click-created trajectory
-uint8 SOURCE_MODEL         = 3   # reserved: a learned model chose
+uint8 SOURCE_MODEL         = 3   # the learned gap scorer chose (/learned_gap_scorer); selected_idx -1 and hold_still: it had no usable choice
 
 uint8 STATUS_PLANNED       = 0   # candidates were built
 uint8 STATUS_NOT_READY     = 1   # no scan, goal or initialisation yet

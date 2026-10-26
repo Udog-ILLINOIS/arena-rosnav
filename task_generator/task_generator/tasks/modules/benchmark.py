@@ -66,6 +66,23 @@ def _man_gap_selection_args() -> typing.List[str]:
             args.append(f"{name}:={value}")
     return args
 
+def _learned_gap_scorer_args() -> typing.List[str]:
+    """
+    Learned gap scorer launch arguments for a relaunch, empty if this launch did not turn it on.
+    """
+    if not rosparam_get(bool, "learned_gap_scorer", False):
+        return []
+    return ["learned_gap_scorer:=true",
+            f"learned_gap_scorer_path:={rosparam_get(str, 'learned_gap_scorer_path', '')}"]
+
+def _il_goal_cursor_args() -> typing.List[str]:
+    """
+    Automatic goal-cursor operator launch argument for a relaunch, empty if this launch did not turn it on.
+    """
+    if not rosparam_get(bool, "il_goal_cursor", False):
+        return []
+    return ["il_goal_cursor:=true"]
+
 class _Config(typing.NamedTuple):
 
     @classmethod
@@ -499,6 +516,8 @@ class Mod_Benchmark(TM_Module):
                     f"force_factor:={rosparam_get(float, 'force_factor', 0.0)}",
                     *_ped_vmax_args(),
                     *_man_gap_selection_args(),
+                    *_learned_gap_scorer_args(),
+                    *_il_goal_cursor_args(),
                     *_il_record_args(self._runid, suite_config.name),
                 ],
                 start_new_session=True,
