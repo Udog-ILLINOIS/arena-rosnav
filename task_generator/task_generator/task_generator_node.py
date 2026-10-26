@@ -329,6 +329,9 @@ class TaskGenerator:
             rospy.loginfo("resetting")
             print("reset_task4")
             is_end = self._task.reset(callback=lambda: False, **kwargs)
+            if rospy.is_shutdown():
+                # the run ended or restarts in this reset (benchmark): no new episode
+                return
             print("reset_task5")
             self._env_wrapper.after_reset_task()
             print("reset_task6")

@@ -62,6 +62,8 @@ def load_node_module():
         parent, _, child = name.rpartition(".")
         if parent:
             setattr(stubs[parent], child, module)
+    # as in a running node; reset_task stops early once rospy is shut down
+    stubs["rospy"].is_shutdown.return_value = False
 
     with mock.patch.dict(sys.modules, stubs):
         spec = importlib.util.spec_from_file_location(
@@ -115,6 +117,18 @@ class TestDoubleResume(unittest.TestCase):
         self.assertEqual(names.count("pub_scenario_reset.publish"), 1, names)
         generator._pub_scenario_reset.publish.assert_called_once_with(3)
         self.assertEqual(generator._number_of_resets, 4)
+
+    def test_no_new_episode_when_the_run_ended_in_the_reset(self):
+        # the benchmark ends or restarts the run in before_reset (IL fix 51)
+        rospy = self.node.rospy
+        rospy.is_shutdown.return_value = True
+        try:
+            generator, names = self._run_reset()
+        finally:
+            rospy.is_shutdown.return_value = False
+        self.assertNotIn("pub_scenario_reset.publish", names)
+        self.assertNotIn("env.after_reset_task", names)
+        self.assertEqual(generator._number_of_resets, 3)
 
 
 if __name__ == "__main__":

@@ -32,6 +32,10 @@ STUBBED_MODULES = [
     "task_generator.tasks",
     "task_generator.tasks.modules",
     "task_generator.tasks.task_factory",
+    "task_generator.task_config",
+    "task_generator.cfg",
+    "dynamic_reconfigure",
+    "dynamic_reconfigure.client",
     "arena_evaluation_msgs",
     "arena_evaluation_msgs.srv",
 ]

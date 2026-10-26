@@ -6,6 +6,8 @@ from task_generator.constants import Config, Constants
 from task_generator.shared import Namespace, rosparam_get
 from task_generator.tasks.modules import TM_Module
 from task_generator.tasks.task_factory import TaskFactory
+from task_generator.task_config import task_config_params
+from task_generator.cfg import TaskGeneratorConfig
 
 import typing
 import os
@@ -15,6 +17,7 @@ import subprocess
 import rospkg
 import rospy
 import arena_evaluation_msgs.srv as arena_evaluation_srvs
+import dynamic_reconfigure.client
 
 import logging
 
@@ -268,7 +271,11 @@ class Mod_Benchmark(TM_Module):
                 fw.write(fr.read())
 
     @classmethod
-    def _taskgen_write(cls, *configs: typing.Dict):
+    def _taskgen_write(cls, *configs: typing.Dict, base: typing.Optional[str] = None) -> typing.Dict:
+        """
+        Overlay configs on base (default: the current task config), write the result
+        to the task config file and return it.
+        """
 
         def overwrite(source: typing.Dict, target: typing.Dict):
             for k,v in source.items():
@@ -279,7 +286,7 @@ class Mod_Benchmark(TM_Module):
                     target[k] = v
             return target
 
-        with open(cls.TASK_GENERATOR_CONFIG, "r") as f:
+        with open(base or cls.TASK_GENERATOR_CONFIG, "r") as f:
             joint_config = yaml.load(f, yaml.FullLoader)
 
         for config in configs:
@@ -288,6 +295,8 @@ class Mod_Benchmark(TM_Module):
         # yaml has problems with r+
         with open(cls.TASK_GENERATOR_CONFIG, "w") as f:
             yaml.dump(joint_config, f)
+
+        return joint_config
 
     @classmethod
     def _taskgen_restore(cls, cleanup: bool = False):
@@ -346,10 +355,12 @@ class Mod_Benchmark(TM_Module):
         self._episode = -1
 
     def before_reset(self):
-        pass
-    
-    def after_reset(self):
+        # count the episode before the task modes place robot and obstacles, so that a
+        # stage change writes the new stage's config in time for this reset (IL fix 51)
         self._episode += 1
+
+    def after_reset(self):
+        pass
 
 
     _logger_object: logging.Logger
@@ -428,6 +439,11 @@ class Mod_Benchmark(TM_Module):
             if new_config.robot != old_config.robot:
                 self._logger.debug(f"robot change requires restart")
                 self._requires_restart = True
+
+            # task modes are launch parameters, applied only by a relaunch
+            if (new_config.tm_robots, new_config.tm_obstacles) != (old_config.tm_robots, old_config.tm_obstacles):
+                self._logger.debug(f"task mode change requires restart")
+                self._requires_restart = True
             
             self._reincarnate()
 
@@ -457,15 +473,18 @@ class Mod_Benchmark(TM_Module):
         contest_config = self._contest.config(self._contest_index)
         suite_config = self._suite.config(self._suite_index)
 
-        self._taskgen_restore()
-        self._taskgen_write(
+        seed = suite_config.seed ^ Suite.Stage.hash({"":self._runid})
+        # the stage's config on top of the base config, written once: the filewatcher
+        # never sees the base config alone in between (IL fix 51)
+        task_config = self._taskgen_write(
             {
                 "episodes": -1,
                 "RANDOM": {
-                    "seed": suite_config.seed ^ Suite.Stage.hash({"":self._runid})
+                    "seed": seed
                 }
             },
-            suite_config.config
+            suite_config.config,
+            base=self.TASK_GENERATOR_CONFIG_BKUP,
         )
 
         default_record_data_dir = f"{self._runid}/{contest_config.name}/{suite_config.name}"
@@ -526,8 +545,27 @@ class Mod_Benchmark(TM_Module):
             self._suicide()
         
         else:
+            # the filewatcher applies the written file asynchronously; the reset that
+            # starts this stage must not run on the previous stage's config
+            self._apply_task_config(task_config)
             rospy.ServiceProxy(f"/{suite_config.robot}/change_directory", arena_evaluation_srvs.ChangeDirectory).call(arena_evaluation_srvs.ChangeDirectoryRequest(record_data_dir))
             self._episode = 0
+
+    def _apply_task_config(self, task_config: typing.Dict):
+        """
+        Set the whole task config on task_generator_server and return once the server
+        has applied it (as the filewatcher does, but synchronously).
+        """
+        try:
+            if not hasattr(self, "_task_config_client"):
+                self._task_config_client = dynamic_reconfigure.client.Client(
+                    name=self.NODE_CONFIGURATION, timeout=10
+                )
+            self._task_config_client.update_configuration(
+                task_config_params(task_config, TaskGeneratorConfig.config_description)
+            )
+        except Exception as e:
+            rospy.logerr(f"benchmark: task config not applied, the stage may start on the previous config: {e!r}")
 
     def _suicide(self):
         subprocess.run(["kill", f"{_get_rosmaster_pid()}"])

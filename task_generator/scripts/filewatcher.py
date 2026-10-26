@@ -1,9 +1,8 @@
 #! /usr/bin/env python3
 
 import functools
-import json
 import os
-from typing import Any, Callable, List, Optional
+from typing import Callable, Optional
 
 import rospkg
 import yaml
@@ -15,6 +14,7 @@ import watchdog.events
 
 import dynamic_reconfigure.client
 from task_generator.cfg import TaskGeneratorConfig
+from task_generator.task_config import task_config_params
 
 
 def observe(file: str, callback: watchdog.events.FileSystemEventHandler):
@@ -38,24 +38,6 @@ def safe_callback(fn: Callable):
 
     return wrapper
 
-
-def recursive_get(obj: Any, property: List[str], fallback: Any = None) -> Any:
-    if not len(property):
-        return fallback if obj is None else obj
-    try:
-        return recursive_get(dict(obj).get(property[0]), property[1:])
-    except:
-        return fallback
-    
-def encode(var: Any):
-    if isinstance(var, list):
-        return ";".join(var)
-    if isinstance(var, dict):
-        return json.dumps(var)
-    return var
-
-def get_or_ignore(obj: dict, key: str) -> dict:
-    return {key: obj.get(key)} if key in obj else {}
 
 def task_config_name(tm_modules: str, master_uri: str) -> str:
     """
@@ -101,27 +83,7 @@ def run(namespace: Optional[str] = None):
             rospy.logdebug("SENSING CHANGE OF TASK_MODE PARAMS")
 
             client.update_configuration(
-                {
-                    **{
-                        k:v
-                        for d in [get_or_ignore(content, parameter["name"]) for parameter in TaskGeneratorConfig.config_description.get("parameters", [])]
-                        for k,v in d.items()
-                    },
-                    **{
-                        k:v
-                        for (k,v)
-                        in (
-                            (name, encode(recursive_get(content, name.split("_"))))
-                            for name in
-                            (
-                                str(parameter["name"])
-                                for group in TaskGeneratorConfig.config_description.get("groups", [])
-                                for parameter in group.get("parameters", [])
-                            )
-                        )
-                        if v is not None
-                    }
-                }
+                task_config_params(content, TaskGeneratorConfig.config_description)
             )
 
         def on_modified(self, event):

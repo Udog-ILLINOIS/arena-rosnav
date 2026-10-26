@@ -28,6 +28,7 @@ STUBBED_MODULES = [
     "dynamic_reconfigure.client",
     "task_generator",
     "task_generator.cfg",
+    "task_generator.task_config",
 ]
 
 
