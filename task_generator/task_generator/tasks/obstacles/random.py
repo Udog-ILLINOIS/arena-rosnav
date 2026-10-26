@@ -200,7 +200,7 @@ class TM_Random(TM_Obstacles):
                 )
                 for model in Config.General.RNG.choice(
                     a=list(MODELS_STATIC_OBSTACLES.keys()),
-                    p=list(MODELS_STATIC_OBSTACLES.values()),
+                    p=np.array(list(MODELS_STATIC_OBSTACLES.values())) / sum(MODELS_STATIC_OBSTACLES.values()),
                     size=N_STATIC_OBSTACLES,
                 )
             ]
@@ -218,7 +218,7 @@ class TM_Random(TM_Obstacles):
                 )
                 for model in Config.General.RNG.choice(
                     a=list(MODELS_INTERACTIVE_OBSTACLES.keys()),
-                    p=list(MODELS_INTERACTIVE_OBSTACLES.values()),
+                    p=np.array(list(MODELS_INTERACTIVE_OBSTACLES.values())) / sum(MODELS_INTERACTIVE_OBSTACLES.values()),
                     size=N_INTERACTIVE_OBSTACLES,
                 )
             ]
@@ -240,7 +240,7 @@ class TM_Random(TM_Obstacles):
                 )
                 for model in Config.General.RNG.choice(
                     a=list(MODELS_DYNAMIC_OBSTACLES.keys()),
-                    p=list(MODELS_DYNAMIC_OBSTACLES.values()),
+                    p=np.array(list(MODELS_DYNAMIC_OBSTACLES.values())) / sum(MODELS_DYNAMIC_OBSTACLES.values()),
                     size=N_DYNAMIC_OBSTACLES,
                 )
             ]
