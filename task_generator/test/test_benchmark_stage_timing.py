@@ -145,7 +145,7 @@ class TestStageTiming(unittest.TestCase):
                 mock.patch.object(b.Mod_Benchmark, "_log_contest", lambda self: None), \
                 mock.patch.object(b.Mod_Benchmark, "_taskgen_restore", lambda *a, **k: None), \
                 mock.patch.object(b.Mod_Benchmark, "_suicide", lambda self: complete()), \
-                mock.patch.object(b.Mod_Benchmark, "_start_stage", lambda self, config: None), \
+                mock.patch.object(b.Mod_Benchmark, "_start_stage", lambda self, config: True), \
                 mock.patch("builtins.open", mock.mock_open()), \
                 mock.patch.object(b.os, "remove"):
             bench._episode = -1  # as after a (re)launch
@@ -437,6 +437,22 @@ class TestStageStart(unittest.TestCase):
         # the whole launch stops, not only the task generator (it is not required)
         suicide.assert_called_once()
         b.rospy.logfatal.assert_called_once()
+
+    def test_nothing_more_after_the_run_stopped(self):
+        # _start_stage stopped the run: no episode counted, no recorder move, no
+        # master calls after the master was killed
+        b = self.benchmark
+        bench, _, _, _, _ = self._reincarnate(120, applied=False)
+        self.assertIsNone(bench._pending_record_dir)
+        self.assertFalse(hasattr(bench, "_episode_index"))
+        bench = self._bench(120)
+        bench._episode_index = -1
+        with mock.patch.object(b.Mod_Benchmark, "_start_stage", return_value=False), \
+                mock.patch.object(b, "rosparam_get") as get, \
+                mock.patch("builtins.open", mock.mock_open()):
+            bench.before_reset()
+        get.assert_not_called()
+        self.assertEqual(-1, bench._episode_index)
 
     def test_timeout_of_the_launch(self):
         b = self.benchmark

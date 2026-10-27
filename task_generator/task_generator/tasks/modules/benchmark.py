@@ -365,7 +365,8 @@ class Mod_Benchmark(TM_Module):
             # first reset after a (re)launch: the filewatcher may not have applied the
             # stage's config yet
             with open(self.TASK_GENERATOR_CONFIG) as f:
-                self._start_stage(yaml.load(f, yaml.FullLoader))
+                if not self._start_stage(yaml.load(f, yaml.FullLoader)):
+                    return  # the run stopped
         # count the episode before the task modes place robot and obstacles, so that a
         # stage change writes the new stage's config in time for this reset (IL fix 51)
         self._episode += 1
@@ -554,7 +555,8 @@ class Mod_Benchmark(TM_Module):
             self._suicide()
         
         else:
-            self._start_stage(task_config)
+            if not self._start_stage(task_config):
+                return  # the run stopped
             self._pending_record_dir = (suite_config.robot, record_data_dir)
             self._episode = 0
 
@@ -563,18 +565,19 @@ class Mod_Benchmark(TM_Module):
         This launch's timeout:= (start_trials.launch keeps it as benchmark_run_timeout;
         the server's param can already hold a stale task config's), else the server's.
         """
-        return rosparam_get(float, "benchmark_run_timeout", rosparam_get(float, self.NODE_CONFIGURATION("timeout"), -1.0))
+        timeout = rosparam_get(float, "benchmark_run_timeout", None)
+        return timeout if timeout is not None else rosparam_get(float, self.NODE_CONFIGURATION("timeout"), -1.0)
 
     def _stage_seed(self) -> int:
         return self._suite.config(self._suite_index).seed ^ Suite.Stage.hash({"":self._runid})
 
-    def _start_stage(self, task_config: typing.Dict):
+    def _start_stage(self, task_config: typing.Dict) -> bool:
         """
         Put the stage's config in place for the reset that starts it: the filewatcher
         applies the written file asynchronously. The RNG restarts from the config's
         seed (the stage's, or one its config sets), also when the previous stage had
-        the same one. If the config cannot be applied, the run stops: the stage would
-        start on the previous config and take the new one at some point during it.
+        the same one. If the config cannot be applied, the run stops (False): the stage
+        would start on the previous config and take the new one at some point during it.
         """
         if not self._apply_task_config(task_config):
             # the filewatcher would apply it at some point during the stage
@@ -582,8 +585,9 @@ class Mod_Benchmark(TM_Module):
             self._logger.info("STAGE CONFIG NOT APPLIED, RUN STOPPED")
             # the whole launch, as at the end of a run (the lock file stays: the run is not complete)
             self._suicide()
-            return
+            return False
         reseed(task_config.get("RANDOM", {}).get("seed", self._stage_seed()))
+        return True
 
     def _apply_task_config(self, task_config: typing.Dict) -> bool:
         """
