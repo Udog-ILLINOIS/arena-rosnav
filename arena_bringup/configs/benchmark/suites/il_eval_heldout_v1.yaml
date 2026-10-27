@@ -1,0 +1,90 @@
+# Held-out evaluation for gap scorers trained on il_dataset_small_v1 (same map, gru_learn).
+# Only scenarios that suite leaves out: 50 pedestrians, starts near the middle, goals in
+# all four corners, none of them in the training data. One episode each; run with
+# il_tools/il_eval_model, which measures time to goal and collisions and records RViz.
+#
+#   stage                    scenario                        start          goal
+#   v3  bottom left          0_50ped_middle_start_v3.json    (14.2, 13.4)   (2.0, 5.9)
+#   v5  bottom right         0_50ped_middle_start_v5.json    (13.1, 11.2)   (26.1, 4.2)
+#   v7  bottom right         0_50ped_middle_start_v7.json    (13.4, 11.8)   (27.1, 3.4)
+#   v9  bottom right         0_50ped_middle_start_v9.json    (9.0, 13.1)    (24.4, 6.8)
+#   v10 bottom right         0_50ped_middle_start_v10.json   (15.6, 11.0)   (25.3, 4.0)
+#   v11 bottom left          0_50ped_middle_start_v11.json   (14.7, 13.4)   (7.7, 7.7)
+#   smartgap 11              smartgap_scenario11.json        (14.2, 13.4)   (2.0, 5.9)
+stages:
+  - name: il_eval_v3_50ped_bottom_left
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v3.json
+
+  - name: il_eval_v5_50ped_bottom_right
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v5.json
+
+  - name: il_eval_v7_50ped_bottom_right
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v7.json
+
+  - name: il_eval_v9_50ped_bottom_right
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v9.json
+
+  - name: il_eval_v10_50ped_bottom_right
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v10.json
+
+  - name: il_eval_v11_50ped_bottom_left
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: 0_50ped_middle_start_v11.json
+
+  - name: il_eval_sg11_50ped
+    episodes: 1
+    robot: rto
+    map: gru_learn
+    tm_robots: scenario
+    tm_obstacles: scenario
+    timeout: 120
+    config:
+      SCENARIO:
+        file: smartgap_scenario11.json
