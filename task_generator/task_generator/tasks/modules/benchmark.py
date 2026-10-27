@@ -329,7 +329,7 @@ class Mod_Benchmark(TM_Module):
             self._contest_index = self._contest.min_index
             self._suite_index = self._suite.min_index
             self._headless = rosparam_get(int, "headless", 1)
-            self._run_timeout = rosparam_get(float, "benchmark_run_timeout", -1.0)
+            self._run_timeout = self._launch_timeout()
 
             self._taskgen_backup()
             with open(self.TASK_GENERATOR_CONFIG_BKUP) as f:
@@ -355,7 +355,7 @@ class Mod_Benchmark(TM_Module):
 
         self._runid, contest_index, suite_index, headless, run_timeout = self._resume()
         # a lock file written before the run timeout was kept: this launch's timeout
-        self._run_timeout = run_timeout if run_timeout is not None else rosparam_get(float, "benchmark_run_timeout", -1.0)
+        self._run_timeout = run_timeout if run_timeout is not None else self._launch_timeout()
 
         self._contest_index, self._suite_index, self._headless = contest_index, suite_index, headless
         self._episode = -1
@@ -558,6 +558,13 @@ class Mod_Benchmark(TM_Module):
             self._pending_record_dir = (suite_config.robot, record_data_dir)
             self._episode = 0
 
+    def _launch_timeout(self) -> float:
+        """
+        This launch's timeout:= (start_trials.launch keeps it as benchmark_run_timeout;
+        the server's param can already hold a stale task config's), else the server's.
+        """
+        return rosparam_get(float, "benchmark_run_timeout", rosparam_get(float, self.NODE_CONFIGURATION("timeout"), -1.0))
+
     def _stage_seed(self) -> int:
         return self._suite.config(self._suite_index).seed ^ Suite.Stage.hash({"":self._runid})
 
@@ -566,11 +573,15 @@ class Mod_Benchmark(TM_Module):
         Put the stage's config in place for the reset that starts it: the filewatcher
         applies the written file asynchronously. The RNG restarts from the config's
         seed (the stage's, or one its config sets), also when the previous stage had
-        the same one; if the config was not applied, the stage runs on the previous
-        one, RNG included.
+        the same one. If the config cannot be applied, the run stops: the stage would
+        start on the previous config and take the new one at some point during it.
         """
-        if self._apply_task_config(task_config):
-            reseed(task_config.get("RANDOM", {}).get("seed", self._stage_seed()))
+        if not self._apply_task_config(task_config):
+            # the filewatcher would apply it at some point during the stage
+            rospy.logfatal("benchmark: the stage's task config could not be applied, stopping the run")
+            rospy.signal_shutdown("benchmark stage config not applied")
+            return
+        reseed(task_config.get("RANDOM", {}).get("seed", self._stage_seed()))
 
     def _apply_task_config(self, task_config: typing.Dict) -> bool:
         """
@@ -587,7 +598,7 @@ class Mod_Benchmark(TM_Module):
             )
             return True
         except Exception as e:
-            rospy.logerr(f"benchmark: task config not applied, the stage starts on the previous config: {e!r}")
+            rospy.logerr(f"benchmark: task config not applied: {e!r}")
             return False
 
     def _suicide(self):

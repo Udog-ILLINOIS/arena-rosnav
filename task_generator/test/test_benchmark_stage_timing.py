@@ -424,9 +424,21 @@ class TestStageStart(unittest.TestCase):
         *_, reseed, _ = self._reincarnate(120, written={"RANDOM": {"seed": 42}})
         reseed.assert_called_once_with(42)
 
-    def test_config_not_applied_keeps_the_rng(self):
+    def test_config_not_applied_stops_the_run(self):
+        b = self.benchmark
+        b.rospy.reset_mock()
         *_, reseed, _ = self._reincarnate(120, applied=False)
         reseed.assert_not_called()
+        b.rospy.signal_shutdown.assert_called_once()
+
+    def test_timeout_of_the_launch(self):
+        b = self.benchmark
+        bench = self._bench(None)
+        for params, expected in (({"benchmark_run_timeout": 240.0, "/task_generator_server/timeout": 90.0}, 240.0),
+                                 ({"/task_generator_server/timeout": 90.0}, 90.0), ({}, -1.0)):
+            with mock.patch.object(b, "rosparam_get",
+                                   side_effect=lambda cast, name, default=None: params.get(name, default)):
+                self.assertEqual(expected, bench._launch_timeout())
 
     def test_run_timeout_kept_through_a_relaunch(self):
         b = self.benchmark
