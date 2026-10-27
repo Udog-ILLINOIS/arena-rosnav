@@ -439,10 +439,20 @@ class TestStageStart(unittest.TestCase):
                 mock.patch("builtins.open", lock):
             bench._reincarnate()
         self.assertEqual("run 0 0 1 300.0", lock().write.call_args_list[0][0][0])
-        # an older lock file without it: no timeout
-        for text, run_timeout in (("run 0 3 1 300.0", 300.0), ("run 0 3 1", -1.0)):
+        # an older lock file without it: none (the launch's is used)
+        for text, run_timeout in (("run 0 3 1 300.0", 300.0), ("run 0 3 1", None)):
             with mock.patch("builtins.open", mock.mock_open(read_data=text)):
                 self.assertEqual(("run", 0, 3, 1, run_timeout), b.Mod_Benchmark._resume())
+
+    def test_recorder_moves_after_the_reset(self):
+        b = self.benchmark
+        b.rospy.reset_mock()
+        bench, *_ = self._reincarnate(120)
+        b.rospy.ServiceProxy.assert_not_called()  # before_reset: nothing placed yet
+        bench.after_reset()
+        b.rospy.ServiceProxy.assert_called_once_with("/rto/change_directory", mock.ANY)
+        bench.after_reset()  # the next episode of the stage
+        b.rospy.ServiceProxy.assert_called_once()
 
     def test_stage_start_applies_config_and_restarts_the_rng(self):
         bench, overlay, apply, reseed, _ = self._reincarnate(120)

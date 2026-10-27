@@ -240,6 +240,7 @@ class Mod_Benchmark(TM_Module):
     _run_timeout: float  # the launch's timeout, for stages without one
 
     _requires_restart: bool
+    _pending_record_dir: typing.Optional[typing.Tuple[str, str]] = None  # (robot, dir) for after_reset
 
     # CONFIGURATION
 
@@ -259,11 +260,10 @@ class Mod_Benchmark(TM_Module):
             return Suite.parse(pathlib.Path(suite).stem, yaml.load(f, yaml.FullLoader))
     
     @classmethod
-    def _resume(cls) -> typing.Tuple[str, Contest.Index, Suite.Index, int, float]:
+    def _resume(cls) -> typing.Tuple[str, Contest.Index, Suite.Index, int, typing.Optional[float]]:
         with open(cls.DIR(cls.LOCK_FILE)) as f:
             runid, contest, suite, headless, *run_timeout = f.read().split(" ")
-        # a lock file written before the run timeout was kept: no timeout
-        return runid, Contest.Index(contest), Suite.Index(suite), int(headless), float(run_timeout[0] if run_timeout else -1)
+        return runid, Contest.Index(contest), Suite.Index(suite), int(headless), float(run_timeout[0]) if run_timeout else None
 
 
     @classmethod
@@ -329,7 +329,7 @@ class Mod_Benchmark(TM_Module):
             self._contest_index = self._contest.min_index
             self._suite_index = self._suite.min_index
             self._headless = rosparam_get(int, "headless", 1)
-            self._run_timeout = rosparam_get(float, self.NODE_CONFIGURATION("timeout"), -1.0)
+            self._run_timeout = rosparam_get(float, "benchmark_run_timeout", -1.0)
 
             self._taskgen_backup()
             with open(self.TASK_GENERATOR_CONFIG_BKUP) as f:
@@ -353,7 +353,9 @@ class Mod_Benchmark(TM_Module):
             self._requires_restart = True
             return self._reincarnate()
 
-        self._runid, contest_index, suite_index, headless, self._run_timeout = self._resume()
+        self._runid, contest_index, suite_index, headless, run_timeout = self._resume()
+        # a lock file written before the run timeout was kept: this launch's timeout
+        self._run_timeout = run_timeout if run_timeout is not None else rosparam_get(float, "benchmark_run_timeout", -1.0)
 
         self._contest_index, self._suite_index, self._headless = contest_index, suite_index, headless
         self._episode = -1
@@ -369,7 +371,12 @@ class Mod_Benchmark(TM_Module):
         self._episode += 1
 
     def after_reset(self):
-        pass
+        # a stage change on the same map: the evaluation recorder moves to the new
+        # stage's folder once the reset has placed everything, as before IL fix 51
+        if self._pending_record_dir is not None:
+            robot, record_data_dir = self._pending_record_dir
+            self._pending_record_dir = None
+            rospy.ServiceProxy(f"/{robot}/change_directory", arena_evaluation_srvs.ChangeDirectory).call(arena_evaluation_srvs.ChangeDirectoryRequest(record_data_dir))
 
 
     _logger_object: logging.Logger
@@ -548,7 +555,7 @@ class Mod_Benchmark(TM_Module):
         
         else:
             self._start_stage(task_config)
-            rospy.ServiceProxy(f"/{suite_config.robot}/change_directory", arena_evaluation_srvs.ChangeDirectory).call(arena_evaluation_srvs.ChangeDirectoryRequest(record_data_dir))
+            self._pending_record_dir = (suite_config.robot, record_data_dir)
             self._episode = 0
 
     def _stage_seed(self) -> int:

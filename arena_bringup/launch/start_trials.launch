@@ -12,6 +12,9 @@
 
   <arg name="timeout" default="180" />
   <param name="task_generator_server/timeout" value="$(arg timeout)" if="$(eval arg('timeout') != '')" />
+  <!-- the launch's timeout as given (the server's param above is overwritten by task configs):
+       the benchmark's timeout for stages without one -->
+  <param name="benchmark_run_timeout" value="$(arg timeout)" if="$(eval arg('timeout') != '')" />
 
   <!-- ___________ ARGS ___________ -->
   <!-- You can launch a single robot and his local_planner with arguments -->
