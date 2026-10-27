@@ -1,6 +1,7 @@
 import datetime
 import hashlib
 import json
+import math
 import pathlib
 from task_generator.constants import Config, Constants
 from task_generator.shared import Namespace, rosparam_get
@@ -479,6 +480,9 @@ class Mod_Benchmark(TM_Module):
         task_config = self._taskgen_write(
             {
                 "episodes": -1,
+                # a relaunch also passes it as timeout:=, a stage on the same map
+                # only gets it here (negative: no timeout)
+                "timeout": suite_config.timeout if math.isfinite(suite_config.timeout) else -1,
                 "RANDOM": {
                     "seed": seed
                 }

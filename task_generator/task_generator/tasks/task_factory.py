@@ -4,6 +4,7 @@ from typing import Dict, List, Type
 import rospy
 from rospkg import RosPack
 
+from task_generator import constants
 from task_generator.constants import Constants
 from task_generator.manager.obstacle_manager import ObstacleManager
 from task_generator.manager.robot_manager import RobotManager
@@ -189,14 +190,19 @@ class TaskFactory:
 
             def _sync_task_config(self):
                 """
-                Give the task modes the task generator server's current config before
-                they place robots and obstacles. Their reconfigure callbacks run
-                asynchronously, so a config a module wrote in before_reset (benchmark
-                stage change) may not have reached them yet (IL fix 51).
+                Give Config (RNG seed, timeout, goal radius) and the task modes the task
+                generator server's current config before robots and obstacles are
+                placed. Their reconfigure callbacks run asynchronously, so a config a
+                module wrote in before_reset (benchmark stage change) may not have
+                reached them yet (IL fix 51).
                 """
                 config = rospy.get_param(Reconfigurable.NODE_CONFIGURATION, None)
                 if not isinstance(config, dict) or config == self.__synced_config:
                     return
+                try:
+                    constants.reconfigure(config)
+                except Exception as e:
+                    rospy.logerr(f"task config not applied to Config: {e!r}")
                 for tm in (self.__tm_robots, self.__tm_obstacles):
                     try:
                         tm.reconfigure(config)
@@ -275,7 +281,8 @@ class TaskFactory:
                     raise Exception("reset error!") from e
 
                 finally:
-                    self.__reset_end.publish()
+                    if not rospy.is_shutdown():
+                        self.__reset_end.publish()
 
             def _mutex_reset_task(self, **kwargs):
                 """
@@ -311,7 +318,9 @@ class TaskFactory:
 
                 finally:
                     print("_mutex_reset_task3") 
-                    rospy.set_param(self.PARAM_RESETTING, False)
+                    # a module that ended or restarted the run has stopped the master
+                    if not rospy.is_shutdown():
+                        rospy.set_param(self.PARAM_RESETTING, False)
                     self.__reset_mutex = False
 
             def reset(self, **kwargs):

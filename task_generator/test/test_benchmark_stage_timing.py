@@ -339,7 +339,89 @@ class TestSyncTaskConfigAtReset(unittest.TestCase):
         self.robots.reset.assert_not_called()
         self.obstacles.reset.assert_not_called()
         module.after_reset.assert_not_called()
-        t._CombinedTask__reset_end.publish.assert_called_once()
+        # the benchmark stopped the master: nothing more is sent to it
+        t._CombinedTask__reset_end.publish.assert_not_called()
+
+    def test_config_is_synced_before_the_task_modes(self):
+        order = []
+        constants = self.factory_module.constants
+        constants.reconfigure.side_effect = lambda c: order.append(("Config", c))
+        self.obstacles.reconfigure.side_effect = lambda c: order.append(("obstacles", c))
+        try:
+            self.task._sync_task_config()
+        finally:
+            constants.reconfigure.side_effect = None
+        self.assertEqual([("Config", self.server), ("obstacles", self.server)], order)
+
+    def test_no_parameter_set_after_the_run_ended(self):
+        m = self.factory_module
+        t = self.task
+        t._train_mode = False
+        t.PARAM_RESETTING = "resetting"
+        t._CombinedTask__reset_mutex = False
+        t._reset_task = lambda: setattr(m.rospy.is_shutdown, "return_value", True)
+        t._mutex_reset_task()
+        self.assertEqual([mock.call(t.PARAM_RESETTING, True)], m.rospy.set_param.call_args_list)
+        self.assertFalse(t._CombinedTask__reset_mutex)
+
+
+class TestStageTimeout(unittest.TestCase):
+    """A stage's timeout is part of the config it writes, so stages on the same map get it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.benchmark = load("tasks", "modules", "benchmark.py")
+
+    def _written(self, timeout):
+        b = self.benchmark
+        stage = b.Suite.Stage(name="s", episodes=1, robot="rto", map="gru_learn", tm_robots="scenario",
+                              tm_obstacles="scenario", config={"SCENARIO": {"file": "CS5.json"}},
+                              seed=1, timeout=timeout)
+        bench = object.__new__(b.Mod_Benchmark)
+        bench._config = types.SimpleNamespace(suite=types.SimpleNamespace(scale_episodes=1))
+        bench._suite = b.Suite(name="suite", stages=[stage])
+        bench._contest = mock.MagicMock()
+        bench._contest_index, bench._suite_index = b.Contest.Index(0), b.Suite.Index(0)
+        bench._requires_restart = False
+        bench._runid, bench._headless = "run", 1
+        with mock.patch.object(b.Mod_Benchmark, "_taskgen_write", return_value={}) as write, \
+                mock.patch.object(b.Mod_Benchmark, "_apply_task_config"), \
+                mock.patch.object(b.Mod_Benchmark, "_logger", mock.MagicMock()), \
+                mock.patch.object(b.Mod_Benchmark, "_log_episode", lambda self: None), \
+                mock.patch.object(b, "rosparam_get", side_effect=lambda cast, name, default=None: default), \
+                mock.patch("builtins.open", mock.mock_open()):
+            bench._reincarnate()
+        return write.call_args[0][0]["timeout"]
+
+    def test_timeout_written(self):
+        self.assertEqual(120, self._written(120))
+
+    def test_no_timeout_written_as_negative(self):
+        self.assertEqual(-1, self._written(float("inf")))
+
+
+class TestConstantsReconfigure(unittest.TestCase):
+    """The RNG is recreated only when the seed changes: the same config arrives several times."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.constants = load("constants.py")
+
+    def _config(self, seed):
+        return {"RANDOM_seed": seed, "episodes": -1, "goal_radius": 0.5,
+                "goal_tolerance_angle": 1.0, "timeout": 120}
+
+    def test_same_seed_keeps_the_sequence(self):
+        c = self.constants
+        c.reconfigure(self._config(5))
+        first = c.Config.General.RNG.random()
+        c.reconfigure(self._config(5))  # the filewatcher's copy of the same config
+        second = c.Config.General.RNG.random()
+        c.reconfigure(self._config(6))
+        c.reconfigure(self._config(5))
+        self.assertNotEqual(first, second)
+        self.assertEqual(first, c.Config.General.RNG.random())
+        self.assertEqual(120, c.Config.Robot.TIMEOUT)
 
 
 if __name__ == "__main__":

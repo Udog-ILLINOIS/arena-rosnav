@@ -2,6 +2,7 @@ import dataclasses
 from enum import Enum
 import enum
 import math
+import threading
 from typing import Any, Callable, Optional
 
 import numpy as np
@@ -114,19 +115,33 @@ class TaskConfig:
 
 Config = TaskConfig()
 
-def _cb_reconfigure(config):
-    global Config
+_reconfigure_lock = threading.Lock()
+_rng_seed: Optional[int] = None  # RANDOM_seed the RNG was last created from
 
-    Config.General.RNG=np.random.default_rng((lambda x: x if x >= 0 else None)(config["RANDOM_seed"]))
-    Config.General.DESIRED_EPISODES=(lambda x: float("inf") if x<0 else x)(config["episodes"])
-    
-    Config.Robot.GOAL_TOLERANCE_RADIUS=config["goal_radius"]
-    Config.Robot.GOAL_TOLERANCE_ANGLE=config["goal_tolerance_angle"]
-    Config.Robot.TIMEOUT=(lambda x: float("inf") if x<0 else x)(config["timeout"])
+
+def reconfigure(config):
+    """
+    Apply the task generator server's config to Config. Runs from the server's
+    reconfigure callback and, before robots and obstacles are placed, at each reset
+    (IL fix 51). The RNG is recreated only when RANDOM_seed changes: the same config
+    arrives more than once (benchmark and filewatcher both set it), and recreating it
+    then would restart the random sequence partway through a stage.
+    """
+    global Config, _rng_seed
+
+    with _reconfigure_lock:
+        if config["RANDOM_seed"] != _rng_seed:
+            Config.General.RNG=np.random.default_rng((lambda x: x if x >= 0 else None)(config["RANDOM_seed"]))
+            _rng_seed = config["RANDOM_seed"]
+        Config.General.DESIRED_EPISODES=(lambda x: float("inf") if x<0 else x)(config["episodes"])
+
+        Config.Robot.GOAL_TOLERANCE_RADIUS=config["goal_radius"]
+        Config.Robot.GOAL_TOLERANCE_ANGLE=config["goal_tolerance_angle"]
+        Config.Robot.TIMEOUT=(lambda x: float("inf") if x<0 else x)(config["timeout"])
 
 dynamic_reconfigure.client.Client(
     name=Constants.TASK_GENERATOR_SERVER_NODE,
-    config_callback=_cb_reconfigure
+    config_callback=reconfigure
 )
 
 
