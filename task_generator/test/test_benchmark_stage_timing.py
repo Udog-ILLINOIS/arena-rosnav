@@ -459,8 +459,22 @@ class TestStageStart(unittest.TestCase):
         b.rospy.reset_mock()
         bench = self._bench(120)
         with mock.patch.object(b, "_get_rosmaster_pid", side_effect=RuntimeError("no master")):
-            with self.assertRaises(RuntimeError):
-                bench._suicide()
+            bench._suicide()
+        b.rospy.signal_shutdown.assert_called_once()
+
+    def test_relaunch_without_the_master_pid_stops_the_run(self):
+        b = self.benchmark
+        b.rospy.reset_mock()
+        bench = self._bench(120)
+        bench._requires_restart = True
+        with mock.patch.object(b.Mod_Benchmark, "_taskgen_write", return_value={}), \
+                mock.patch.object(b, "_get_rosmaster_pid", side_effect=RuntimeError("no master")), \
+                mock.patch.object(b.subprocess, "Popen") as popen, \
+                mock.patch.object(b.Mod_Benchmark, "_logger", mock.MagicMock()), \
+                mock.patch.object(b, "rosparam_get", side_effect=lambda cast, name, default=None: default), \
+                mock.patch("builtins.open", mock.mock_open()):
+            bench._reincarnate()
+        popen.assert_not_called()
         b.rospy.signal_shutdown.assert_called_once()
 
     def test_timeout_of_the_launch(self):

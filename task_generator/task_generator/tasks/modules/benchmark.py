@@ -508,7 +508,15 @@ class Mod_Benchmark(TM_Module):
         rospy.loginfo(f"REINCARNATING with tm_obstacles: {suite_config.tm_obstacles}")
 
         if self._requires_restart:
-            self._logger.info(f"{_get_rosmaster_pid()}")
+            try:
+                master_pid = _get_rosmaster_pid()
+            except RuntimeError as e:
+                # no relaunch can wait for the master: stop rather than run on in the old world
+                rospy.logfatal(f"benchmark: {e}, cannot relaunch for the next stage, stopping the run")
+                self._logger.info("MASTER NOT FOUND, RUN STOPPED")
+                rospy.signal_shutdown("benchmark relaunch impossible")
+                return
+            self._logger.info(f"{master_pid}")
             subprocess.Popen(
                 [
                     os.path.join(
@@ -516,7 +524,7 @@ class Mod_Benchmark(TM_Module):
                         "scripts",
                         "delay_restart.py"
                     ),
-                    f"{_get_rosmaster_pid()}",
+                    f"{master_pid}",
                     "arena_bringup",
                     launch_file,
                     "tm_modules:=benchmark",
@@ -610,6 +618,7 @@ class Mod_Benchmark(TM_Module):
     def _suicide(self):
         try:
             subprocess.run(["kill", f"{_get_rosmaster_pid()}"])
-        finally:
-            # also when the master's pid is not found: this node at least stops
-            rospy.signal_shutdown("goodbye cruel world")
+        except RuntimeError as e:
+            # this node at least stops
+            rospy.logerr(f"benchmark: {e}, the master keeps running")
+        rospy.signal_shutdown("goodbye cruel world")
