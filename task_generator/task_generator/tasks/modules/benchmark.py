@@ -608,5 +608,8 @@ class Mod_Benchmark(TM_Module):
             return False
 
     def _suicide(self):
-        subprocess.run(["kill", f"{_get_rosmaster_pid()}"])
-        rospy.signal_shutdown("goodbye cruel world")
+        try:
+            subprocess.run(["kill", f"{_get_rosmaster_pid()}"])
+        finally:
+            # also when the master's pid is not found: this node at least stops
+            rospy.signal_shutdown("goodbye cruel world")

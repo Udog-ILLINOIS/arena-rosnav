@@ -454,6 +454,15 @@ class TestStageStart(unittest.TestCase):
         get.assert_not_called()
         self.assertEqual(-1, bench._episode_index)
 
+    def test_suicide_stops_the_node_without_the_master_pid(self):
+        b = self.benchmark
+        b.rospy.reset_mock()
+        bench = self._bench(120)
+        with mock.patch.object(b, "_get_rosmaster_pid", side_effect=RuntimeError("no master")):
+            with self.assertRaises(RuntimeError):
+                bench._suicide()
+        b.rospy.signal_shutdown.assert_called_once()
+
     def test_timeout_of_the_launch(self):
         b = self.benchmark
         bench = self._bench(None)
