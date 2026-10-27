@@ -145,6 +145,8 @@ class TestStageTiming(unittest.TestCase):
                 mock.patch.object(b.Mod_Benchmark, "_log_contest", lambda self: None), \
                 mock.patch.object(b.Mod_Benchmark, "_taskgen_restore", lambda *a, **k: None), \
                 mock.patch.object(b.Mod_Benchmark, "_suicide", lambda self: complete()), \
+                mock.patch.object(b.Mod_Benchmark, "_start_stage", lambda self, config: None), \
+                mock.patch("builtins.open", mock.mock_open()), \
                 mock.patch.object(b.os, "remove"):
             bench._episode = -1  # as after a (re)launch
             used = []
@@ -365,39 +367,77 @@ class TestSyncTaskConfigAtReset(unittest.TestCase):
         self.assertFalse(t._CombinedTask__reset_mutex)
 
 
-class TestStageTimeout(unittest.TestCase):
-    """A stage's timeout is part of the config it writes, so stages on the same map get it."""
+class TestStageStart(unittest.TestCase):
+    """What a stage start writes and applies: its timeout (so stages on the same map get
+    it) and its seed, from which the RNG restarts."""
 
     @classmethod
     def setUpClass(cls):
         cls.benchmark = load("tasks", "modules", "benchmark.py")
 
-    def _written(self, timeout):
+    def _bench(self, timeout):
         b = self.benchmark
-        stage = b.Suite.Stage(name="s", episodes=1, robot="rto", map="gru_learn", tm_robots="scenario",
+        stage = b.Suite.Stage(name="s", episodes=2, robot="rto", map="gru_learn", tm_robots="scenario",
                               tm_obstacles="scenario", config={"SCENARIO": {"file": "CS5.json"}},
                               seed=1, timeout=timeout)
         bench = object.__new__(b.Mod_Benchmark)
-        bench._config = types.SimpleNamespace(suite=types.SimpleNamespace(scale_episodes=1))
+        bench._config = types.SimpleNamespace(suite=types.SimpleNamespace(scale_episodes=1),
+                                              general=types.SimpleNamespace(simulator="flatland"))
         bench._suite = b.Suite(name="suite", stages=[stage])
         bench._contest = mock.MagicMock()
         bench._contest_index, bench._suite_index = b.Contest.Index(0), b.Suite.Index(0)
         bench._requires_restart = False
         bench._runid, bench._headless = "run", 1
-        with mock.patch.object(b.Mod_Benchmark, "_taskgen_write", return_value={}) as write, \
-                mock.patch.object(b.Mod_Benchmark, "_apply_task_config"), \
+        return bench
+
+    def _reincarnate(self, timeout, restart=False):
+        b = self.benchmark
+        bench = self._bench(timeout)
+        bench._requires_restart = restart
+        b.rospkg.RosPack.return_value.get_path.return_value = "/task_generator"
+        with mock.patch.object(b.Mod_Benchmark, "_taskgen_write", return_value={"written": 1}) as write, \
+                mock.patch.object(b.Mod_Benchmark, "_apply_task_config") as apply, \
+                mock.patch.object(b, "reseed") as reseed, \
+                mock.patch.object(b, "_get_rosmaster_pid", return_value=1), \
+                mock.patch.object(b.subprocess, "Popen") as popen, \
+                mock.patch.object(b.Mod_Benchmark, "_suicide", lambda self: None), \
                 mock.patch.object(b.Mod_Benchmark, "_logger", mock.MagicMock()), \
                 mock.patch.object(b.Mod_Benchmark, "_log_episode", lambda self: None), \
                 mock.patch.object(b, "rosparam_get", side_effect=lambda cast, name, default=None: default), \
                 mock.patch("builtins.open", mock.mock_open()):
             bench._reincarnate()
-        return write.call_args[0][0]["timeout"]
+        return bench, write.call_args[0][0], apply, reseed, popen
 
     def test_timeout_written(self):
-        self.assertEqual(120, self._written(120))
+        _, overlay, _, _, _ = self._reincarnate(120)
+        self.assertEqual(120, overlay["timeout"])
 
-    def test_no_timeout_written_as_negative(self):
-        self.assertEqual(-1, self._written(float("inf")))
+    def test_no_timeout_keeps_the_runs(self):
+        _, overlay, _, _, _ = self._reincarnate(None)
+        self.assertNotIn("timeout", overlay)
+        for timeout, arg in ((120, ["timeout:=120"]), (None, [])):
+            *_, popen = self._reincarnate(timeout, restart=True)
+            self.assertEqual(arg, [a for a in popen.call_args[0][0] if a.startswith("timeout:=")])
+
+    def test_stage_start_applies_config_and_restarts_the_rng(self):
+        bench, overlay, apply, reseed, _ = self._reincarnate(120)
+        apply.assert_called_once_with({"written": 1})
+        reseed.assert_called_once_with(overlay["RANDOM"]["seed"])
+        self.assertEqual(bench._stage_seed(), overlay["RANDOM"]["seed"])
+
+    def test_first_reset_after_a_relaunch_starts_the_stage(self):
+        b = self.benchmark
+        bench = self._bench(120)
+        bench._episode_index = -1  # as after a (re)launch
+        b.yaml.load.return_value = {"SCENARIO": {"file": "CS5.json"}}
+        with mock.patch.object(b.Mod_Benchmark, "_start_stage") as start, \
+                mock.patch.object(b.Mod_Benchmark, "_log_episode", lambda self: None), \
+                mock.patch.object(b, "rosparam_get", side_effect=lambda cast, name, default=None: default), \
+                mock.patch("builtins.open", mock.mock_open()):
+            bench.before_reset()
+            bench.before_reset()
+        start.assert_called_once_with({"SCENARIO": {"file": "CS5.json"}})
+        self.assertEqual(1, bench._episode)
 
 
 class TestConstantsReconfigure(unittest.TestCase):
@@ -413,6 +453,7 @@ class TestConstantsReconfigure(unittest.TestCase):
 
     def test_same_seed_keeps_the_sequence(self):
         c = self.constants
+        c.reseed(0)
         c.reconfigure(self._config(5))
         first = c.Config.General.RNG.random()
         c.reconfigure(self._config(5))  # the filewatcher's copy of the same config
@@ -422,6 +463,16 @@ class TestConstantsReconfigure(unittest.TestCase):
         self.assertNotEqual(first, second)
         self.assertEqual(first, c.Config.General.RNG.random())
         self.assertEqual(120, c.Config.Robot.TIMEOUT)
+
+    def test_reseed_restarts_an_unchanged_seed(self):
+        c = self.constants
+        c.reseed(0)
+        c.reconfigure(self._config(5))
+        first = c.Config.General.RNG.random()
+        c.reseed(5)  # next stage, same seed
+        self.assertEqual(first, c.Config.General.RNG.random())
+        c.reconfigure(self._config(5))  # its config arriving later changes nothing
+        self.assertNotEqual(first, c.Config.General.RNG.random())
 
 
 if __name__ == "__main__":

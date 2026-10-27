@@ -1,9 +1,8 @@
 import datetime
 import hashlib
 import json
-import math
 import pathlib
-from task_generator.constants import Config, Constants
+from task_generator.constants import Constants, reseed
 from task_generator.shared import Namespace, rosparam_get
 from task_generator.tasks.modules import TM_Module
 from task_generator.tasks.task_factory import TaskFactory
@@ -137,7 +136,7 @@ class Suite(typing.NamedTuple):
         config: typing.Dict
 
         seed: int
-        timeout: float
+        timeout: typing.Optional[float]
 
         @classmethod
         def hash(cls, obj: typing.Dict) -> int:
@@ -151,7 +150,8 @@ class Suite(typing.NamedTuple):
 
         @classmethod
         def parse(cls, obj: typing.Dict) -> "Suite.Stage":
-            obj.setdefault("timeout", Config.Robot.TIMEOUT)
+            # none: the stage keeps the run's timeout
+            obj.setdefault("timeout", None)
             obj.setdefault("seed", cls.hash(obj))
             return cls(**obj)
         
@@ -356,6 +356,11 @@ class Mod_Benchmark(TM_Module):
         self._episode = -1
 
     def before_reset(self):
+        if self._episode < 0:
+            # first reset after a (re)launch: the filewatcher may not have applied the
+            # stage's config yet
+            with open(self.TASK_GENERATOR_CONFIG) as f:
+                self._start_stage(yaml.load(f, yaml.FullLoader))
         # count the episode before the task modes place robot and obstacles, so that a
         # stage change writes the new stage's config in time for this reset (IL fix 51)
         self._episode += 1
@@ -474,22 +479,13 @@ class Mod_Benchmark(TM_Module):
         contest_config = self._contest.config(self._contest_index)
         suite_config = self._suite.config(self._suite_index)
 
-        seed = suite_config.seed ^ Suite.Stage.hash({"":self._runid})
+        overlay = {"episodes": -1, "RANDOM": {"seed": self._stage_seed()}}
+        if suite_config.timeout is not None:
+            # a relaunch also passes it as timeout:=, a stage on the same map only gets it here
+            overlay["timeout"] = suite_config.timeout
         # the stage's config on top of the base config, written once: the filewatcher
         # never sees the base config alone in between (IL fix 51)
-        task_config = self._taskgen_write(
-            {
-                "episodes": -1,
-                # a relaunch also passes it as timeout:=, a stage on the same map
-                # only gets it here (negative: no timeout)
-                "timeout": suite_config.timeout if math.isfinite(suite_config.timeout) else -1,
-                "RANDOM": {
-                    "seed": seed
-                }
-            },
-            suite_config.config,
-            base=self.TASK_GENERATOR_CONFIG_BKUP,
-        )
+        task_config = self._taskgen_write(overlay, suite_config.config, base=self.TASK_GENERATOR_CONFIG_BKUP)
 
         default_record_data_dir = f"{self._runid}/{contest_config.name}/{suite_config.name}"
         top_file_location = rosparam_get(str, "rec_dir", '')
@@ -519,7 +515,7 @@ class Mod_Benchmark(TM_Module):
                     f"record_data_dir:={record_data_dir}",
 
                     f"simulator:={config.general.simulator}",
-                    f"timeout:={suite_config.timeout}",
+                    *([f"timeout:={suite_config.timeout}"] if suite_config.timeout is not None else []),
                     f"headless:={self._headless}",
                     
                     # contest
@@ -549,11 +545,21 @@ class Mod_Benchmark(TM_Module):
             self._suicide()
         
         else:
-            # the filewatcher applies the written file asynchronously; the reset that
-            # starts this stage must not run on the previous stage's config
-            self._apply_task_config(task_config)
+            self._start_stage(task_config)
             rospy.ServiceProxy(f"/{suite_config.robot}/change_directory", arena_evaluation_srvs.ChangeDirectory).call(arena_evaluation_srvs.ChangeDirectoryRequest(record_data_dir))
             self._episode = 0
+
+    def _stage_seed(self) -> int:
+        return self._suite.config(self._suite_index).seed ^ Suite.Stage.hash({"":self._runid})
+
+    def _start_stage(self, task_config: typing.Dict):
+        """
+        Put the stage's config in place for the reset that starts it: the filewatcher
+        applies the written file asynchronously. The RNG restarts from the stage's
+        seed, also when the previous stage had the same one.
+        """
+        self._apply_task_config(task_config)
+        reseed(self._stage_seed())
 
     def _apply_task_config(self, task_config: typing.Dict):
         """

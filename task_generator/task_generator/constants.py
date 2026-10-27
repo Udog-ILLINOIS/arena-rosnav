@@ -127,17 +127,27 @@ def reconfigure(config):
     arrives more than once (benchmark and filewatcher both set it), and recreating it
     then would restart the random sequence partway through a stage.
     """
-    global Config, _rng_seed
-
     with _reconfigure_lock:
         if config["RANDOM_seed"] != _rng_seed:
-            Config.General.RNG=np.random.default_rng((lambda x: x if x >= 0 else None)(config["RANDOM_seed"]))
-            _rng_seed = config["RANDOM_seed"]
+            _new_rng(config["RANDOM_seed"])
         Config.General.DESIRED_EPISODES=(lambda x: float("inf") if x<0 else x)(config["episodes"])
 
         Config.Robot.GOAL_TOLERANCE_RADIUS=config["goal_radius"]
         Config.Robot.GOAL_TOLERANCE_ANGLE=config["goal_tolerance_angle"]
         Config.Robot.TIMEOUT=(lambda x: float("inf") if x<0 else x)(config["timeout"])
+
+def reseed(seed: int):
+    """Restart the RNG from seed (negative: from entropy), even if it is unchanged: a
+    benchmark stage starts from its seed, also after a stage with the same seed."""
+    with _reconfigure_lock:
+        _new_rng(seed)
+
+
+def _new_rng(seed: int):
+    global Config, _rng_seed
+    Config.General.RNG=np.random.default_rng(seed if seed >= 0 else None)
+    _rng_seed = seed
+
 
 dynamic_reconfigure.client.Client(
     name=Constants.TASK_GENERATOR_SERVER_NODE,

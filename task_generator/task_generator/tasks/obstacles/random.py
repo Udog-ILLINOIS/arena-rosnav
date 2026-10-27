@@ -17,6 +17,11 @@ import dynamic_reconfigure.client
 import dataclasses
 
 
+def _probabilities(weights: Dict[str, float]) -> np.ndarray:
+    """Model weights as probabilities: numpy's choice() needs them to sum to 1."""
+    return np.array(list(weights.values())) / sum(weights.values())
+
+
 @dataclasses.dataclass
 class _Config:
     MIN_STATIC_OBSTACLES: int
@@ -200,6 +205,7 @@ class TM_Random(TM_Obstacles):
                 )
                 for model in Config.General.RNG.choice(
                     a=list(MODELS_STATIC_OBSTACLES.keys()),
+                    p=_probabilities(MODELS_STATIC_OBSTACLES),
                     size=N_STATIC_OBSTACLES,
                 )
             ]
@@ -217,6 +223,7 @@ class TM_Random(TM_Obstacles):
                 )
                 for model in Config.General.RNG.choice(
                     a=list(MODELS_INTERACTIVE_OBSTACLES.keys()),
+                    p=_probabilities(MODELS_INTERACTIVE_OBSTACLES),
                     size=N_INTERACTIVE_OBSTACLES,
                 )
             ]
@@ -238,6 +245,7 @@ class TM_Random(TM_Obstacles):
                 )
                 for model in Config.General.RNG.choice(
                     a=list(MODELS_DYNAMIC_OBSTACLES.keys()),
+                    p=_probabilities(MODELS_DYNAMIC_OBSTACLES),
                     size=N_DYNAMIC_OBSTACLES,
                 )
             ]
