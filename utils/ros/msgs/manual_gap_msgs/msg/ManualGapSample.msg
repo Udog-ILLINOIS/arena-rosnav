@@ -5,7 +5,7 @@
 
 uint16 SCHEMA_VERSION = 3   # 2: dg_pick_idx and per-candidate dg_* costs; 3: per-candidate model_score
 
-uint8 SOURCE_NONE          = 0   # no selection this tick
+uint8 SOURCE_NONE          = 0   # no selection this tick (learned mode: the scorer is not loaded)
 uint8 SOURCE_GAP_CURSOR    = 1   # a gap was selected from the cursor
 uint8 SOURCE_CLICK_TO_MOVE = 2   # following a click-created trajectory
 uint8 SOURCE_MODEL         = 3   # the learned gap scorer chose (/learned_gap_scorer); selected_idx -1 and hold_still: it had no usable choice

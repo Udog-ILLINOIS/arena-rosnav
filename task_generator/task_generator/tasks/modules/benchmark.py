@@ -579,7 +579,9 @@ class Mod_Benchmark(TM_Module):
         if not self._apply_task_config(task_config):
             # the filewatcher would apply it at some point during the stage
             rospy.logfatal("benchmark: the stage's task config could not be applied, stopping the run")
-            rospy.signal_shutdown("benchmark stage config not applied")
+            self._logger.info("STAGE CONFIG NOT APPLIED, RUN STOPPED")
+            # the whole launch, as at the end of a run (the lock file stays: the run is not complete)
+            self._suicide()
             return
         reseed(task_config.get("RANDOM", {}).get("seed", self._stage_seed()))
 

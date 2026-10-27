@@ -426,10 +426,17 @@ class TestStageStart(unittest.TestCase):
 
     def test_config_not_applied_stops_the_run(self):
         b = self.benchmark
-        b.rospy.reset_mock()
-        *_, reseed, _ = self._reincarnate(120, applied=False)
+        with mock.patch.object(b.Mod_Benchmark, "_suicide") as suicide:
+            b.rospy.reset_mock()
+            bench = self._bench(120)
+            with mock.patch.object(b.Mod_Benchmark, "_apply_task_config", return_value=False), \
+                    mock.patch.object(b, "reseed") as reseed, \
+                    mock.patch.object(b.Mod_Benchmark, "_logger", mock.MagicMock()):
+                bench._start_stage({})
         reseed.assert_not_called()
-        b.rospy.signal_shutdown.assert_called_once()
+        # the whole launch stops, not only the task generator (it is not required)
+        suicide.assert_called_once()
+        b.rospy.logfatal.assert_called_once()
 
     def test_timeout_of_the_launch(self):
         b = self.benchmark

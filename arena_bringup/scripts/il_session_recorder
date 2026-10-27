@@ -9,7 +9,8 @@ Creates <data_root>/il_gap_selection/<session>/ with
     versions/*.diff   uncommitted changes of those repos
     view.rviz         the RViz config used
     notes.txt         operator, instruction given, anything odd (filled in by hand)
-    episodes.csv      one row per /scenario_reset_begin and /scenario_reset
+    episodes.csv      one row per /scenario_reset_begin and /scenario_reset (with the
+                      task generator's timeout and goal radius at that time)
 and warns when free disk space runs low (rosbag stops quietly on a full disk).
 
 See dynamic_gap/docs/IL_DATA_COLLECTION_PLAN.md, section 1.6.
@@ -202,7 +203,7 @@ class SessionRecorder:
 
         self.episodes_file = os.path.join(self.session_dir, "episodes.csv")
         with open(self.episodes_file, "w", newline="") as f:
-            csv.writer(f).writerow(["event", "episode", "wall_time", "sim_time", "start", "goal"])
+            csv.writer(f).writerow(["event", "episode", "wall_time", "sim_time", "start", "goal", "timeout", "goal_radius"])
 
         topics = il_topics(self.namespace) + list(rospy.get_param("~extra_topics", []))
         # own process group (Ctrl-C in the terminal reaches the recorder, which
@@ -219,13 +220,16 @@ class SessionRecorder:
         self.check_disk()
 
     def episode_event(self, event, msg):
-        # the task generator sets start and goal before it publishes scenario_reset
+        # the task generator sets start and goal, and applies a benchmark stage's
+        # timeout and goal radius, before it publishes scenario_reset
         ns = "/" + self.namespace.strip("/") + "/"
         with open(self.episodes_file, "a", newline="") as f:
             csv.writer(f).writerow([
                 event, msg.data, "{:.3f}".format(datetime.datetime.now().timestamp()),
                 "{:.3f}".format(rospy.get_time()),
                 rospy.get_param(ns + "start", ""), rospy.get_param(ns + "goal", ""),
+                rospy.get_param("/task_generator_server/timeout", ""),
+                rospy.get_param("/task_generator_server/goal_radius", ""),
             ])
 
     def check_disk(self, *args):
