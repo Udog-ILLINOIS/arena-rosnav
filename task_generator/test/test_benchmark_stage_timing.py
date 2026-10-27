@@ -375,10 +375,10 @@ class TestStageStart(unittest.TestCase):
     def setUpClass(cls):
         cls.benchmark = load("tasks", "modules", "benchmark.py")
 
-    def _bench(self, timeout):
+    def _bench(self, timeout, config=None):
         b = self.benchmark
         stage = b.Suite.Stage(name="s", episodes=2, robot="rto", map="gru_learn", tm_robots="scenario",
-                              tm_obstacles="scenario", config={"SCENARIO": {"file": "CS5.json"}},
+                              tm_obstacles="scenario", config=config or {"SCENARIO": {"file": "CS5.json"}},
                               seed=1, timeout=timeout)
         bench = object.__new__(b.Mod_Benchmark)
         bench._config = types.SimpleNamespace(suite=types.SimpleNamespace(scale_episodes=1),
@@ -387,16 +387,16 @@ class TestStageStart(unittest.TestCase):
         bench._contest = mock.MagicMock()
         bench._contest_index, bench._suite_index = b.Contest.Index(0), b.Suite.Index(0)
         bench._requires_restart = False
-        bench._runid, bench._headless = "run", 1
+        bench._runid, bench._headless, bench._run_timeout = "run", 1, 300.0
         return bench
 
-    def _reincarnate(self, timeout, restart=False):
+    def _reincarnate(self, timeout, restart=False, written=None, applied=True):
         b = self.benchmark
         bench = self._bench(timeout)
         bench._requires_restart = restart
         b.rospkg.RosPack.return_value.get_path.return_value = "/task_generator"
-        with mock.patch.object(b.Mod_Benchmark, "_taskgen_write", return_value={"written": 1}) as write, \
-                mock.patch.object(b.Mod_Benchmark, "_apply_task_config") as apply, \
+        with mock.patch.object(b.Mod_Benchmark, "_taskgen_write", return_value=written or {"written": 1}) as write, \
+                mock.patch.object(b.Mod_Benchmark, "_apply_task_config", return_value=applied) as apply, \
                 mock.patch.object(b, "reseed") as reseed, \
                 mock.patch.object(b, "_get_rosmaster_pid", return_value=1), \
                 mock.patch.object(b.subprocess, "Popen") as popen, \
@@ -413,11 +413,36 @@ class TestStageStart(unittest.TestCase):
         self.assertEqual(120, overlay["timeout"])
 
     def test_no_timeout_keeps_the_runs(self):
+        # the launch's timeout (300 here), also after a stage with another one
         _, overlay, _, _, _ = self._reincarnate(None)
-        self.assertNotIn("timeout", overlay)
-        for timeout, arg in ((120, ["timeout:=120"]), (None, [])):
+        self.assertEqual(300.0, overlay["timeout"])
+        for timeout, arg in ((120, ["timeout:=120"]), (None, ["timeout:=300.0"])):
             *_, popen = self._reincarnate(timeout, restart=True)
             self.assertEqual(arg, [a for a in popen.call_args[0][0] if a.startswith("timeout:=")])
+
+    def test_seed_set_by_the_stage_config(self):
+        *_, reseed, _ = self._reincarnate(120, written={"RANDOM": {"seed": 42}})
+        reseed.assert_called_once_with(42)
+
+    def test_config_not_applied_keeps_the_rng(self):
+        *_, reseed, _ = self._reincarnate(120, applied=False)
+        reseed.assert_not_called()
+
+    def test_run_timeout_kept_through_a_relaunch(self):
+        b = self.benchmark
+        bench = self._bench(None)
+        lock = mock.mock_open()
+        with mock.patch.object(b.Mod_Benchmark, "_taskgen_write", return_value={}), \
+                mock.patch.object(b.Mod_Benchmark, "_start_stage"), \
+                mock.patch.object(b.Mod_Benchmark, "_log_episode", lambda self: None), \
+                mock.patch.object(b, "rosparam_get", side_effect=lambda cast, name, default=None: default), \
+                mock.patch("builtins.open", lock):
+            bench._reincarnate()
+        self.assertEqual("run 0 0 1 300.0", lock().write.call_args_list[0][0][0])
+        # an older lock file without it: no timeout
+        for text, run_timeout in (("run 0 3 1 300.0", 300.0), ("run 0 3 1", -1.0)):
+            with mock.patch("builtins.open", mock.mock_open(read_data=text)):
+                self.assertEqual(("run", 0, 3, 1, run_timeout), b.Mod_Benchmark._resume())
 
     def test_stage_start_applies_config_and_restarts_the_rng(self):
         bench, overlay, apply, reseed, _ = self._reincarnate(120)

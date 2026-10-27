@@ -150,7 +150,7 @@ class Suite(typing.NamedTuple):
 
         @classmethod
         def parse(cls, obj: typing.Dict) -> "Suite.Stage":
-            # none: the stage keeps the run's timeout
+            # none: the run's timeout (the launch's)
             obj.setdefault("timeout", None)
             obj.setdefault("seed", cls.hash(obj))
             return cls(**obj)
@@ -237,6 +237,7 @@ class Mod_Benchmark(TM_Module):
     _contest_index: Contest.Index
     _suite_index: Suite.Index
     _headless: int
+    _run_timeout: float  # the launch's timeout, for stages without one
 
     _requires_restart: bool
 
@@ -258,10 +259,11 @@ class Mod_Benchmark(TM_Module):
             return Suite.parse(pathlib.Path(suite).stem, yaml.load(f, yaml.FullLoader))
     
     @classmethod
-    def _resume(cls) -> typing.Tuple[str, Contest.Index, Suite.Index, int]:
+    def _resume(cls) -> typing.Tuple[str, Contest.Index, Suite.Index, int, float]:
         with open(cls.DIR(cls.LOCK_FILE)) as f:
-            runid, contest, suite, headless = f.read().split(" ")
-        return runid, Contest.Index(contest), Suite.Index(suite), int(headless)
+            runid, contest, suite, headless, *run_timeout = f.read().split(" ")
+        # a lock file written before the run timeout was kept: no timeout
+        return runid, Contest.Index(contest), Suite.Index(suite), int(headless), float(run_timeout[0] if run_timeout else -1)
 
 
     @classmethod
@@ -327,6 +329,7 @@ class Mod_Benchmark(TM_Module):
             self._contest_index = self._contest.min_index
             self._suite_index = self._suite.min_index
             self._headless = rosparam_get(int, "headless", 1)
+            self._run_timeout = rosparam_get(float, self.NODE_CONFIGURATION("timeout"), -1.0)
 
             self._taskgen_backup()
             with open(self.TASK_GENERATOR_CONFIG_BKUP) as f:
@@ -350,7 +353,7 @@ class Mod_Benchmark(TM_Module):
             self._requires_restart = True
             return self._reincarnate()
 
-        self._runid, contest_index, suite_index, headless = self._resume()
+        self._runid, contest_index, suite_index, headless, self._run_timeout = self._resume()
 
         self._contest_index, self._suite_index, self._headless = contest_index, suite_index, headless
         self._episode = -1
@@ -473,16 +476,15 @@ class Mod_Benchmark(TM_Module):
     def _reincarnate(self):
 
         with open(self.DIR(self.LOCK_FILE), "w") as f:
-            f.write(f"{self._runid} {self._contest_index} {self._suite_index} {self._headless}")
+            f.write(f"{self._runid} {self._contest_index} {self._suite_index} {self._headless} {self._run_timeout}")
 
         config = self._config
         contest_config = self._contest.config(self._contest_index)
         suite_config = self._suite.config(self._suite_index)
 
-        overlay = {"episodes": -1, "RANDOM": {"seed": self._stage_seed()}}
-        if suite_config.timeout is not None:
-            # a relaunch also passes it as timeout:=, a stage on the same map only gets it here
-            overlay["timeout"] = suite_config.timeout
+        # a relaunch also passes it as timeout:=, a stage on the same map only gets it here
+        timeout = suite_config.timeout if suite_config.timeout is not None else self._run_timeout
+        overlay = {"episodes": -1, "timeout": timeout, "RANDOM": {"seed": self._stage_seed()}}
         # the stage's config on top of the base config, written once: the filewatcher
         # never sees the base config alone in between (IL fix 51)
         task_config = self._taskgen_write(overlay, suite_config.config, base=self.TASK_GENERATOR_CONFIG_BKUP)
@@ -515,7 +517,7 @@ class Mod_Benchmark(TM_Module):
                     f"record_data_dir:={record_data_dir}",
 
                     f"simulator:={config.general.simulator}",
-                    *([f"timeout:={suite_config.timeout}"] if suite_config.timeout is not None else []),
+                    f"timeout:={timeout}",
                     f"headless:={self._headless}",
                     
                     # contest
@@ -555,16 +557,18 @@ class Mod_Benchmark(TM_Module):
     def _start_stage(self, task_config: typing.Dict):
         """
         Put the stage's config in place for the reset that starts it: the filewatcher
-        applies the written file asynchronously. The RNG restarts from the stage's
-        seed, also when the previous stage had the same one.
+        applies the written file asynchronously. The RNG restarts from the config's
+        seed (the stage's, or one its config sets), also when the previous stage had
+        the same one; if the config was not applied, the stage runs on the previous
+        one, RNG included.
         """
-        self._apply_task_config(task_config)
-        reseed(self._stage_seed())
+        if self._apply_task_config(task_config):
+            reseed(task_config.get("RANDOM", {}).get("seed", self._stage_seed()))
 
-    def _apply_task_config(self, task_config: typing.Dict):
+    def _apply_task_config(self, task_config: typing.Dict) -> bool:
         """
         Set the whole task config on task_generator_server and return once the server
-        has applied it (as the filewatcher does, but synchronously).
+        has applied it (as the filewatcher does, but synchronously). False if it failed.
         """
         try:
             if not hasattr(self, "_task_config_client"):
@@ -574,8 +578,10 @@ class Mod_Benchmark(TM_Module):
             self._task_config_client.update_configuration(
                 task_config_params(task_config, TaskGeneratorConfig.config_description)
             )
+            return True
         except Exception as e:
-            rospy.logerr(f"benchmark: task config not applied, the stage may start on the previous config: {e!r}")
+            rospy.logerr(f"benchmark: task config not applied, the stage starts on the previous config: {e!r}")
+            return False
 
     def _suicide(self):
         subprocess.run(["kill", f"{_get_rosmaster_pid()}"])
